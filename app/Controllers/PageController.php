@@ -4,19 +4,20 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Response;
-use App\Services\PricingService;
+use App\Services\LateReturnService;
+use App\Services\DeliveryFeeService;
 
 /** หน้าข้อมูลทั่วไป: วิธีการเช่า / คำถามที่พบบ่อย / ติดต่อเรา / เงื่อนไขการเช่า */
 class PageController extends Controller
 {
     public function howTo(): Response
     {
-        return $this->view('public/how_to', ['late' => PricingService::latePolicyText()]);
+        return $this->view('public/how_to', ['late' => LateReturnService::policyText()]);
     }
 
     public function faq(): Response
     {
-        $late = PricingService::latePolicyText();
+        $late = LateReturnService::policyText();
         $lead = (int) setting('booking_lead_hours', '3');
 
         // [คำถาม, คำตอบ] — ตัวเลขที่เกี่ยวกับเงื่อนไขดึงจากการตั้งค่าจริง หน้าเว็บจึงไม่บอกต่างจากที่ระบบคิดเงิน
@@ -46,7 +47,7 @@ class PageController extends Controller
              'แบ่งเป็น 2 ขั้น — ขั้นแรกโอนมัดจำการจอง ' . money0(setting('booking_deposit', '1000')) . ' บาท เพื่อล็อกรถ เงินก้อนนี้หักจากค่าเช่า ไม่ใช่ค่าใช้จ่ายเพิ่ม · ขั้นที่สองวันรับรถ จ่ายค่าเช่าส่วนที่เหลือ พร้อมวางเงินประกันความเสียหายตามประเภทรถ ซึ่งได้คืนหลังคืนรถ'],
 
             ['มีบริการส่งรถถึงที่ไหม',
-             'มีครับ เลือกบริการเสริม "ส่งรถถึงที่" และ "รับรถคืนถึงที่" ได้ตอนจอง คิดระยะจากกรุงเทพ — ' . PricingService::deliveryTiersText() . ' ค่าบริการแสดงในหน้าจองก่อนยืนยัน คิดแยกขารับและขาส่ง'],
+             'มีครับ เลือกบริการเสริม "ส่งรถถึงที่" และ "รับรถคืนถึงที่" ได้ตอนจอง คิดระยะจากกรุงเทพ — ' . DeliveryFeeService::tiersText() . ' ค่าบริการแสดงในหน้าจองก่อนยืนยัน คิดแยกขารับและขาส่ง'],
 
             ['จำกัดระยะทางต่อวันไหม',
              (int) setting('free_km_per_day', '0') > 0
@@ -77,9 +78,9 @@ class PageController extends Controller
     public function terms(): Response
     {
         return $this->view('public/terms', [
-            'late'    => PricingService::latePolicyText(),
-            'fuelFee' => PricingService::fuelFeePerLevel(),
-            'tiers'   => PricingService::deliveryTiersText(),
+            'late'    => LateReturnService::policyText(),
+            'fuelFee' => LateReturnService::fuelFeePerLevel(),
+            'tiers'   => DeliveryFeeService::tiersText(),
         ]);
     }
 }

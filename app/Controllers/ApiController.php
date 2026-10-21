@@ -7,6 +7,7 @@ use App\Core\Response;
 use App\Core\View;
 use App\Models\Car;
 use App\Services\AbTrackService;
+use App\Services\DeliveryFeeService;
 use App\Services\AuthService;
 use App\Services\AvailabilityService;
 use App\Services\BookingService;
@@ -57,7 +58,7 @@ class ApiController extends Controller
         } else {
             $periodError = AvailabilityService::validatePeriod($pickDb, $retDb, $pickType, $retType);
         }
-        if (!$periodError && !$adminMode && PricingService::deliveryOutOfRange($addons, $km)) {
+        if (!$periodError && !$adminMode && DeliveryFeeService::isOutOfRange($addons, $km)) {
             $periodError = 'ระยะทาง ' . number_format($km) . ' กม. อยู่นอกพื้นที่ที่คิดค่าส่งรถอัตโนมัติ กรุณาติดต่อเจ้าหน้าที่ ' . setting('phone');
         }
         $available = $periodError ? false : AvailabilityService::isCarAvailable($carId, $pickDb, $retDb, $ignoreId);

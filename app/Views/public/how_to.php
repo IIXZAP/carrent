@@ -15,7 +15,7 @@ $steps = [
     ['clipboard', 'ยืนยันการจอง',     'กรอกข้อมูลและโอนมัดจำ พร้อมอัปโหลดสลิปในระบบ'],
     ['car',       'รับและออกเดินทาง', 'รับรถตามวันเวลาที่เลือก พร้อมเอกสารการเช่า'],
 ];
-$fuelFee = \App\Services\PricingService::fuelFeePerLevel();
+$fuelFee = \App\Services\LateReturnService::fuelFeePerLevel();
 ?>
 <section class="bg-gradient-to-b from-[#eaf2fc] to-surface py-7">
   <div class="wrap">

@@ -137,7 +137,7 @@ $this->layout('layouts/public', ['title' => $title, 'desc' => $desc, 'active' =>
               <label for="delivery_km">ระยะทางจากกรุงเทพ (กม.)</label>
               <input type="number" id="delivery_km" name="delivery_km" min="0" max="500" step="1"
                      inputmode="numeric" placeholder="เช่น 45">
-              <div class="hint"><?= e(\App\Services\PricingService::deliveryTiersText()) ?></div>
+              <div class="hint"><?= e(\App\Services\DeliveryFeeService::tiersText()) ?></div>
             </div>
           </div>
 
@@ -146,7 +146,7 @@ $this->layout('layouts/public', ['title' => $title, 'desc' => $desc, 'active' =>
             <?php foreach ($addonOpts as $k => [$label, $price, $unit]):
                 if ($price == 0) continue;
                 $priceText = $price < 0
-                    ? 'คิดตามระยะทาง · ไม่เกิน ' . (int) \App\Services\PricingService::freeDeliveryKm() . ' กม. ฟรี'
+                    ? 'คิดตามระยะทาง · ไม่เกิน ' . (int) \App\Services\DeliveryFeeService::freeKm() . ' กม. ฟรี'
                     : money0($price) . ' บ. / ' . $unit; ?>
               <label class="checkline">
                 <input type="checkbox" name="addons[<?= e($k) ?>]" value="1" class="addon">

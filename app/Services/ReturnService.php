@@ -97,7 +97,7 @@ final class ReturnService
      */
     private static function chargeLines(array $booking, array $car, string $returnedAt, int $mileage, int $fuel, Request $request): array
     {
-        $suggested = PricingService::calcReturnCharges($booking, $car, $returnedAt, $mileage ?: null, $fuel);
+        $suggested = LateReturnService::calculate($booking, $car, $returnedAt, $mileage ?: null, $fuel);
         $posted    = $request->arr('chg');
 
         $lines = [];

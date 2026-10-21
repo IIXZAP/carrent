@@ -7,8 +7,8 @@
  *         $blank = HTML ที่ใช้แทนข้อมูลที่ยังไม่มี (ฉบับพิมพ์เป็นเส้นประให้เขียนมือ หน้าเซ็นบนมือถือเป็นข้อความ)
  * แก้ข้อความสัญญาให้ตรงกับที่ทนายของร้านตรวจแล้วก่อนใช้งานจริง
  */
-$lp   = \App\Services\PricingService::latePolicy();
-$fuel = \App\Services\PricingService::fuelFeePerLevel();
+$lp   = \App\Services\LateReturnService::policy();
+$fuel = \App\Services\LateReturnService::fuelFeePerLevel();
 ?>
 <ol class="my-2.5 list-decimal pl-[30px] [&>li]:mb-2">
   <li><b>ทรัพย์สินที่เช่า</b> ผู้ให้เช่าตกลงให้เช่าและผู้เช่าตกลงเช่ารถยนต์
@@ -54,8 +54,8 @@ $fuel = \App\Services\PricingService::fuelFeePerLevel();
     <?= e(setting('airport_open_time', '05:00')) ?>–<?= e(setting('airport_close_time', '24:00')) ?> น.</li>
 
   <li><b>การรับ–ส่งรถถึงที่</b> ผู้ให้เช่าให้บริการรับ–ส่งรถในระยะไม่เกิน
-    <?= (int) \App\Services\PricingService::freeDeliveryKm() ?> กิโลเมตรจากกรุงเทพมหานคร โดยไม่คิดค่าใช้จ่าย
-    ส่วนที่เกินคิดค่าเดินทางตามระยะ (<?= e(\App\Services\PricingService::deliveryTiersText()) ?>)
+    <?= (int) \App\Services\DeliveryFeeService::freeKm() ?> กิโลเมตรจากกรุงเทพมหานคร โดยไม่คิดค่าใช้จ่าย
+    ส่วนที่เกินคิดค่าเดินทางตามระยะ (<?= e(\App\Services\DeliveryFeeService::tiersText()) ?>)
     โดยคิดแยกเที่ยวรับและเที่ยวส่ง</li>
 
   <li><b>การคืนรถล่าช้า</b> หากผู้เช่าคืนรถช้ากว่ากำหนดเกิน <?= (int) $lp['grace'] ?> ชั่วโมง

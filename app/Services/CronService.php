@@ -118,7 +118,7 @@ final class CronService
                 $hours = (int) floor((time() - strtotime($o['return_at'])) / 3600);
                 $msg .= sprintf("• %s (%s) %s %s — เลยมา %d ชม. (ค่าปรับประมาณ %s บาท)\n",
                     $o['booking_no'], $o['plate'], $o['contact_name'], $o['contact_phone'], $hours,
-                    money0(PricingService::calcReturnCharges($o, ['price_day' => $o['price_day']], date('Y-m-d H:i:s'), null, null)['total']));
+                    money0(LateReturnService::calculate($o, ['price_day' => $o['price_day']], date('Y-m-d H:i:s'), null, null)['total']));
             }
             NotificationService::queue('line', $adminLine, $msg);
             NotificationService::queue('email', $adminMail, $msg, 'รถเลยกำหนดคืน');

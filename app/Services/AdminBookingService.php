@@ -119,7 +119,7 @@ final class AdminBookingService
 
         $addons = BookingService::cleanAddons($request->arr('addons'));
         $km     = max(0, min(2000, $request->float('delivery_km')));
-        if (PricingService::deliveryOutOfRange($addons, $km)) {
+        if (DeliveryFeeService::isOutOfRange($addons, $km)) {
             throw new \RuntimeException('ระยะทาง ' . number_format($km) . ' กม. เกินตารางค่าส่งรถที่ตั้งไว้ ระบบจึงคิดค่าส่งให้ไม่ได้ — เพิ่มช่วงระยะทางที่ หลังบ้าน → ตั้งค่า หรือใส่ระยะทางไม่เกินช่วงสุดท้ายของตาราง');
         }
 

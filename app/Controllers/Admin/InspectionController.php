@@ -8,7 +8,6 @@ use App\Models\Booking;
 use App\Models\Car;
 use App\Models\Inspection;
 use App\Services\InspectionService;
-use App\Services\UploadService;
 
 /**
  * หน้าถ่ายรูปตรวจสภาพรถ — ออกแบบให้ใช้บนมือถือหน้างานเป็นหลัก

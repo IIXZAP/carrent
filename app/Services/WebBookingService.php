@@ -113,7 +113,7 @@ final class WebBookingService
 
     private static function checkDelivery(array $in): array
     {
-        if (!PricingService::deliveryOutOfRange($in['addons'], $in['km'])) {
+        if (!DeliveryFeeService::isOutOfRange($in['addons'], $in['km'])) {
             return [];
         }
 

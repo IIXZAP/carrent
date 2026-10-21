@@ -11,11 +11,12 @@ use App\Models\Inspection;
 use App\Models\Payment;
 use App\Models\Signature;
 use App\Services\AdminBookingService;
+use App\Services\ExtendService;
+use App\Services\LateReturnService;
+use App\Services\DeliveryFeeService;
 use App\Services\BookingActionService;
 use App\Services\BookingService;
 use App\Services\InspectionService;
-use App\Services\PricingService;
-use App\Services\SignatureService;
 
 /**
  * หลังบ้าน: รายการจอง / สร้าง–แก้ไข / หน้างาน 1 รายการ (ยืนยัน ส่งมอบ รับคืน ยกเลิก บันทึกเงิน)
@@ -128,8 +129,8 @@ class BookingController extends AdminController
             'defRet'    => $defRet,
             'vatOn'     => $vatOn,
             'cars'      => Car::active(),
-            'deliveryKm' => $b ? rtrim(rtrim(number_format(PricingService::bookingDeliveryKm($b), 1, '.', ''), '0'), '.') : '0',
-            'tiersText' => PricingService::deliveryTiersText(),
+            'deliveryKm' => $b ? rtrim(rtrim(number_format(DeliveryFeeService::bookingKm($b), 1, '.', ''), '0'), '.') : '0',
+            'tiersText' => DeliveryFeeService::tiersText(),
         ]);
     }
 
@@ -215,10 +216,10 @@ class BookingController extends AdminController
             $fuel = $r->str('fuel') !== '' ? max(0, min(8, $r->int('fuel'))) : null;
             $ts   = $r->str('at') !== '' ? strtotime($r->str('at')) : false;
             $at   = date('Y-m-d H:i:s', $ts !== false ? min($ts, time()) : time());
-            return $this->json(['ok' => true] + PricingService::calcReturnCharges($b, $car, $at, $km, $fuel));
+            return $this->json(['ok' => true] + LateReturnService::calculate($b, $car, $at, $km, $fuel));
         }
 
-        $q = PricingService::extensionQuote($b, $car, $r->str('ret'));
+        $q = ExtendService::quote($b, $car, $r->str('ret'));
         if ($q['ok']) {
             $q['new_return_text'] = thai_date($q['new_return'], true);
         }

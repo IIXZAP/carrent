@@ -6,7 +6,7 @@ use App\Core\Response;
 use App\Models\ActivityLog;
 use App\Models\Notification;
 use App\Services\NotificationService;
-use App\Services\PricingService;
+use App\Services\DeliveryFeeService;
 
 /** ตั้งค่าระบบ — ข้อมูลร้าน สี บัญชีรับโอน เงื่อนไขเช่า แจ้งเตือน */
 class SettingController extends AdminController
@@ -39,7 +39,7 @@ class SettingController extends AdminController
         return $this->view('admin/settings/index', [
             'title'     => 'ตั้งค่าระบบ',
             's'         => settings(),
-            'tiersText' => PricingService::deliveryTiersText(),
+            'tiersText' => DeliveryFeeService::tiersText(),
         ]);
     }
 
