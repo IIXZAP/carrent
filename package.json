@@ -1,0 +1,13 @@
+{
+  "name": "thonglorcarrent",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ระบบเช่ารถ thonglorcarrent (PHP MVC + PDO + Tailwind CSS)",
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i assets/css/src/input.css -o assets/css/app.css --minify",
+    "watch": "tailwindcss -c tailwind.config.js -i assets/css/src/input.css -o assets/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "3.4.17"
+  }
+}

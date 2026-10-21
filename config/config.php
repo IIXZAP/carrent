@@ -42,8 +42,8 @@ if (!defined('BASE_URL')) {
         } elseif (!empty($_SERVER['SCRIPT_NAME'])) {
             // ทางสำรองสุดท้าย: เดาจาก URL ของสคริปต์ที่กำลังรัน
             $__dir = str_replace('\\', '/', dirname((string) $_SERVER['SCRIPT_NAME']));
-            // ตัดโฟลเดอร์ย่อยของระบบออก (admin, api, cron)
-            $__base = preg_replace('#/(admin|api|cron)$#', '', $__dir);
+            // ตัดโฟลเดอร์ย่อยของระบบออก (cron)
+            $__base = preg_replace('#/cron$#', '', $__dir);
         }
         define('BASE_URL', rtrim(str_replace('\\', '/', (string) $__base), '/') === '/' ? '' : rtrim(str_replace('\\', '/', (string) $__base), '/'));
     }
@@ -64,7 +64,7 @@ define('LOGIN_LOCK_MINUTES', 15);
 // ---------- ระบบ ----------
 define('APP_TZ', 'Asia/Bangkok');
 define('APP_DEBUG', false);               // production ให้เป็น false เสมอ
-define('APP_VERSION', '1.0.0');
+define('APP_VERSION', '2.0.0');
 
 date_default_timezone_set(APP_TZ);
 
