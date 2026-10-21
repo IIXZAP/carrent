@@ -1,0 +1,31 @@
+# ============================================================
+#  ห้ามรันสคริปต์ในโฟลเดอร์อัปโหลดเด็ดขาด
+#  หมายเหตุ: php_flag ใช้ได้เฉพาะ mod_php — ถ้า host ใช้ PHP-FPM/LiteSpeed
+#  คำสั่งนั้นจะทำให้ขึ้น error 500 จึงห่อด้วย IfModule ไว้
+# ============================================================
+
+Options -Indexes
+
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag engine off
+</IfModule>
+
+# กันเรียกไฟล์สคริปต์ทุกชนิด (ใช้ได้ทุก host)
+<FilesMatch "\.(php|php\d|phtml|phps|phar|cgi|pl|py|sh|asp|aspx|jsp|htaccess)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# ถ้าเผลอหลุดมาได้ ให้ส่งเป็นข้อความธรรมดา ไม่ใช่รันเป็นสคริปต์
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .php8 .phar .cgi .pl .py

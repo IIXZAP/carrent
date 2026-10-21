@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /uploads/
+Disallow: /api/
+Disallow: /track.php
+Disallow: /booking-success.php
+Allow: /
+
+Sitemap: /sitemap.php

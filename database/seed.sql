@@ -1,0 +1,158 @@
+-- ============================================================
+-- thonglorcarrent — ข้อมูลตั้งต้น (รันหลัง schema.sql)
+-- ผู้ใช้เริ่มต้น: admin@thonglorcarrent.com / Thonglor@2026
+-- *** เปลี่ยนรหัสผ่านทันทีหลังติดตั้ง ***
+-- ============================================================
+SET NAMES utf8mb4;
+
+INSERT INTO users (name, email, password_hash, role, phone, is_active) VALUES
+('ผู้ดูแลระบบ', 'admin@thonglorcarrent.com',
+ '$2y$12$/sBgENIC.cPZzLAF4GlfJu1OQCIr6dzTrLBbnMyRe9mUcat7QueYW',
+ 'admin', '088-949-2824', 1)
+ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+-- ------------------------------------------------------------
+-- ตั้งค่าระบบ
+-- ------------------------------------------------------------
+INSERT INTO settings (skey, svalue) VALUES
+('site_name',        'thonglorcarrent'),
+('site_tagline',     'Drive a Better Bangkok'),
+('company_name',     'บริษัท ทองหล่อ คาร์เร้นท์ จำกัด'),
+('company_tax_id',   ''),
+('company_address',  ''),
+('phone',            '088-949-2824'),
+('phone2',           '084-294-6694'),
+('office_phone',     '02-460-0100'),
+('email',            'admin@thonglorcarrent.com'),
+('line_id',          '@606jyaeh'),
+('facebook',         'บริษัท ทองหล่อ คาร์เร้นท์ จำกัด'),
+
+-- แบรนด์ / สี (เปลี่ยนที่นี่จุดเดียว มีผลทั้งเว็บ)
+('brand_primary',    '#1f2d3d'),
+('brand_accent',     '#e09a3c'),
+('brand_dark',       '#16212e'),
+
+-- การเงิน
+('vat_enabled',      '0'),
+('vat_rate',         '7'),
+('wht_rate',         '5'),
+('currency',         'THB'),
+('deposit_percent',  '20'),         -- มัดจำ % ของยอดเช่า (ถ้ารถไม่ได้ตั้งค่าเฉพาะ)
+('security_deposit_default', '3000'),
+
+-- บัญชีรับโอน
+('bank_name',        'ธนาคารกสิกรไทย'),
+('bank_account_no',  'xxx-x-xxxxx-x'),
+('bank_account_name','บริษัท ทองหล่อ คาร์เร้นท์ จำกัด'),
+('promptpay_id',     '0889492824'),
+
+-- เงื่อนไขเช่า
+('min_rental_days',  '1'),
+('booking_lead_hours','3'),         -- ต้องจองล่วงหน้าอย่างน้อยกี่ชั่วโมง
+('late_fee_per_hour','200'),
+('free_km_per_day',  '0'),          -- 0 = ไม่จำกัดระยะทาง
+('over_km_fee',      '4'),
+('open_time',        '08:00'),
+('close_time',       '20:00'),
+
+-- แจ้งเตือน
+('notify_line_enabled',   '0'),
+('line_channel_token',    ''),
+('line_admin_user_id',    ''),
+('notify_email_enabled',  '0'),
+('smtp_host',        ''),
+('smtp_port',        '587'),
+('smtp_user',        ''),
+('smtp_pass',        ''),
+('smtp_secure',      'tls'),
+('smtp_from_name',   'thonglorcarrent'),
+('notify_admin_email','admin@thonglorcarrent.com'),
+('reminder_days_before', '30'),     -- เตือนงานประจำรถล่วงหน้ากี่วัน
+('cron_key',         'CHANGE-THIS-CRON-KEY')
+ON DUPLICATE KEY UPDATE svalue = VALUES(svalue);
+
+-- ------------------------------------------------------------
+-- รถ 8 คัน (แก้ทะเบียนให้ตรงจริงในหน้า "จัดการรถ")
+-- ------------------------------------------------------------
+INSERT INTO cars
+(plate, province, brand, model, year, color, car_type, segment, seats, gear, fuel,
+ price_day, price_week, price_month, deposit, deposit_booking,
+ delivery_fee, driver_fee_day, status, mileage,
+ insurance_type, insurance_expire, act_expire, tax_expire, next_service_km,
+ cover_image, features, description, sort_order)
+VALUES
+('1กก 1001','กรุงเทพมหานคร','Toyota','Yaris Ativ',2023,'ขาว','eco','รถเก๋ง (Eco Car)',5,'auto','เบนซิน',
+ 1200, 7500, 26000, 3000, 1000, 300, 1200, 'available', 32000,
+ 'ชั้น 1','2027-03-31','2027-03-31','2027-03-31', 40000,
+ 'cars/yaris-ativ.webp',
+ '["Apple CarPlay","กล้องหลัง","Cruise Control"]',
+ 'อีโคคาร์ประหยัดน้ำมัน คล่องตัวในเมือง จอดง่าย เหมาะเดินทางคนเดียวหรือคู่',1),
+
+('1กก 1002','กรุงเทพมหานคร','Honda','City',2023,'เทา','eco','รถเก๋ง (B-Segment)',5,'auto','เบนซิน',
+ 1300, 8100, 28000, 3000, 1000, 300, 1200, 'available', 28500,
+ 'ชั้น 1','2027-05-31','2027-05-31','2027-05-31', 35000,
+ 'cars/honda-city.webp',
+ '["Apple CarPlay","กล้องรอบคัน","Honda Sensing"]',
+ 'ซิตี้คาร์ยอดนิยม ห้องโดยสารกว้างกว่าคู่แข่งในคลาส ประหยัดน้ำมัน',2),
+
+('2ขข 2001','กรุงเทพมหานคร','Toyota','Corolla Altis',2023,'ขาว','sedan','รถเก๋ง (C-Segment)',5,'auto','เบนซิน',
+ 1500, 9400, 32000, 5000, 1500, 300, 1500, 'available', 45000,
+ 'ชั้น 1','2027-01-31','2027-01-31','2027-01-31', 50000,
+ 'cars/corolla-altis.webp',
+ '["เบาะหนัง","Toyota Safety Sense","จอสัมผัส 9 นิ้ว"]',
+ 'ซีดานระดับพรีเมียม นั่งสบาย เก็บเสียงดี เหมาะรับรองลูกค้าและเดินทางไกล',3),
+
+('2ขข 2002','กรุงเทพมหานคร','Honda','Civic',2023,'เทา','sedan','รถเก๋ง (C-Segment)',5,'auto','เบนซิน',
+ 1600, 10000, 34000, 5000, 1500, 300, 1500, 'available', 21000,
+ 'ชั้น 1','2027-08-31','2027-08-31','2027-08-31', 30000,
+ 'cars/honda-civic.webp',
+ '["เบาะหนัง","ซันรูฟ","Honda Sensing"]',
+ 'สปอร์ตซีดาน ขับสนุก ช่วงล่างหนึบ ภายในหรู เหมาะขับทางไกล',4),
+
+('3คค 3001','กรุงเทพมหานคร','Toyota','Fortuner',2023,'ขาว','suv','รถ SUV (PPV)',7,'auto','ดีเซล',
+ 2200, 13800, 47000, 8000, 2500, 500, 1800, 'available', 62000,
+ 'ชั้น 1','2027-02-28','2027-02-28','2027-02-28', 70000,
+ 'cars/fortuner.webp',
+ '["7 ที่นั่ง","ขับเคลื่อน 4 ล้อ","เบาะหนัง"]',
+ 'SUV 7 ที่นั่ง สูงโปร่ง ลุยได้ทุกเส้นทาง เหมาะเดินทางครอบครัวและต่างจังหวัด',5),
+
+('3คค 3002','กรุงเทพมหานคร','Mitsubishi','Pajero Sport',2023,'ดำ','suv','รถ SUV (PPV)',7,'auto','ดีเซล',
+ 2200, 13800, 47000, 8000, 2500, 500, 1800, 'available', 58000,
+ 'ชั้น 1','2027-04-30','2027-04-30','2027-04-30', 65000,
+ 'cars/pajero-sport.webp',
+ '["7 ที่นั่ง","กล้องรอบคัน","เบาะหนัง"]',
+ 'SUV สมรรถนะสูง นั่งสบาย ช่วงล่างนุ่ม เหมาะเดินทางไกลเป็นหมู่คณะ',6),
+
+('4งง 4001','กรุงเทพมหานคร','Isuzu','D-Max Cab 4',2023,'เงิน','pickup','รถกระบะ (4 ประตู)',5,'auto','ดีเซล',
+ 1800, 11300, 38000, 5000, 1500, 400, 1500, 'available', 40000,
+ 'ชั้น 1','2027-06-30','2027-06-30','2027-06-30', 45000,
+ 'cars/dmax-cab4.webp',
+ '["แค็บ 4 ประตู","กระบะบรรทุก","ประหยัดน้ำมัน"]',
+ 'กระบะ 4 ประตู บรรทุกของได้เยอะ ใช้งานได้ทั้งงานและเดินทางส่วนตัว',7),
+
+('5จจ 5001','กรุงเทพมหานคร','Toyota','Commuter',2023,'ขาว','van','รถตู้ (Van)',14,'auto','ดีเซล',
+ 2500, 15600, 53000, 10000, 3000, 600, 2000, 'available', 120000,
+ 'ชั้น 1','2027-07-31','2027-07-31','2027-07-31', 130000,
+ 'cars/commuter.webp',
+ '["14 ที่นั่ง","แอร์หลัง","ประตูสไลด์"]',
+ 'รถตู้ 14 ที่นั่ง เหมาะรับส่งพนักงาน สัมมนา ทัวร์ และเดินทางเป็นกลุ่มใหญ่',8)
+ON DUPLICATE KEY UPDATE
+  brand = VALUES(brand), model = VALUES(model), segment = VALUES(segment),
+  year = VALUES(year), color = VALUES(color), car_type = VALUES(car_type),
+  seats = VALUES(seats), gear = VALUES(gear), fuel = VALUES(fuel),
+  price_day = VALUES(price_day), price_week = VALUES(price_week), price_month = VALUES(price_month),
+  deposit = VALUES(deposit), deposit_booking = VALUES(deposit_booking),
+  cover_image = VALUES(cover_image), features = VALUES(features), description = VALUES(description);
+
+-- งานประจำรถตัวอย่าง (เตือนล่วงหน้าอัตโนมัติ)
+INSERT INTO maintenances (car_id, task_type, title, due_date, status)
+SELECT id, 'insurance', CONCAT('ต่อประกัน ', brand, ' ', model, ' (', plate, ')'), insurance_expire, 'pending'
+FROM cars WHERE insurance_expire IS NOT NULL;
+
+INSERT INTO maintenances (car_id, task_type, title, due_date, status)
+SELECT id, 'act', CONCAT('ต่อ พ.ร.บ. ', plate), act_expire, 'pending'
+FROM cars WHERE act_expire IS NOT NULL;
+
+INSERT INTO maintenances (car_id, task_type, title, due_date, status)
+SELECT id, 'tax', CONCAT('ต่อภาษีประจำปี ', plate), tax_expire, 'pending'
+FROM cars WHERE tax_expire IS NOT NULL;

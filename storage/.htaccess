@@ -1,0 +1,8 @@
+# ปิดการเข้าถึงโฟลเดอร์นี้ผ่านเว็บทั้งหมด — ไฟล์สำรองดาวน์โหลดได้ทางหลังบ้านเท่านั้น
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>
