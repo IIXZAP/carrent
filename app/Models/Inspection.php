@@ -32,8 +32,15 @@ final class Inspection extends Model
         );
         // photos  = รูปที่ใช้เป็นผลตรวจปัจจุบัน (มุมละ 1 รูป)
         // history = รูปที่ถูกถ่ายแทน — ไม่ลบทิ้ง เก็บไว้ให้ตรวจย้อนหลังได้ว่าเคยมีรูปอะไร
-        $row['photos']  = array_values(array_filter($all, fn($p) => empty($p['superseded_at'])));
-        $row['history'] = array_values(array_filter($all, fn($p) => !empty($p['superseded_at'])));
+        $row['photos']  = [];
+        $row['history'] = [];
+        foreach ($all as $photo) {
+            if (empty($photo['superseded_at'])) {
+                $row['photos'][] = $photo;
+            } else {
+                $row['history'][] = $photo;
+            }
+        }
         return $row;
     }
 

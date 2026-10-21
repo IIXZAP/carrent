@@ -149,39 +149,41 @@ function human_bytes(float $b): string
 /** แปลงตัวเลขเป็นคำอ่านภาษาไทย (ใช้พิมพ์ท้ายใบเสร็จ) */
 function baht_text(float $amount): string
 {
-    $num  = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
-    $unit = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน'];
-    $read = function (string $s) use ($num, $unit): string {
-        $s = ltrim($s, '0');
-        if ($s === '') {
-            return '';
-        }
-        $len = strlen($s);
-        $out = '';
-        for ($i = 0; $i < $len; $i++) {
-            $d   = (int) $s[$i];
-            $pos = $len - $i - 1;
-            if ($d === 0) {
-                continue;
-            }
-            if ($pos === 0 && $d === 1 && $len > 1) {
-                $out .= 'เอ็ด';
-            } elseif ($pos === 1 && $d === 1) {
-                $out .= 'สิบ';
-            } elseif ($pos === 1 && $d === 2) {
-                $out .= 'ยี่สิบ';
-            } else {
-                $out .= $num[$d] . $unit[$pos];
-            }
-        }
-        return $out;
-    };
     $amount = round($amount, 2);
     $int    = (int) floor($amount);
     $satang = (int) round(($amount - $int) * 100);
-    $text   = $int === 0 ? 'ศูนย์' : $read((string) $int);
-    $text  .= 'บาท';
-    $text  .= $satang > 0 ? $read((string) $satang) . 'สตางค์' : 'ถ้วน';
+
+    $text  = $int === 0 ? 'ศูนย์' : thai_number_words((string) $int);
+    $text .= 'บาท';
+    $text .= $satang > 0 ? thai_number_words((string) $satang) . 'สตางค์' : 'ถ้วน';
+    return $text;
+}
+
+/** อ่านเลขจำนวนเต็มเป็นคำไทย เช่น "21" → "ยี่สิบเอ็ด" (รองรับถึงหลักล้าน) */
+function thai_number_words(string $digits): string
+{
+    $names = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+    $units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน'];
+
+    $digits = ltrim($digits, '0');
+    $length = strlen($digits);
+    $text   = '';
+    for ($i = 0; $i < $length; $i++) {
+        $digit    = (int) $digits[$i];
+        $position = $length - $i - 1;   // 0 = หลักหน่วย
+        if ($digit === 0) {
+            continue;
+        }
+        if ($position === 0 && $digit === 1 && $length > 1) {
+            $text .= 'เอ็ด';
+        } elseif ($position === 1 && $digit === 1) {
+            $text .= 'สิบ';
+        } elseif ($position === 1 && $digit === 2) {
+            $text .= 'ยี่สิบ';
+        } else {
+            $text .= $names[$digit] . $units[$position];
+        }
+    }
     return $text;
 }
 
@@ -223,39 +225,39 @@ function phone_sql(string $col): string
 /** @return array{0:string,1:string} [ข้อความ, โทนสี ok|warn|danger|info|primary|muted] */
 function booking_status_label(string $s): array
 {
-    return match ($s) {
+    $labels = [
         'pending'   => ['รอยืนยัน', 'warn'],
         'confirmed' => ['ยืนยันแล้ว', 'info'],
         'picked_up' => ['รับรถแล้ว', 'primary'],
         'returned'  => ['คืนรถแล้ว', 'ok'],
         'completed' => ['ปิดงาน', 'ok'],
         'cancelled' => ['ยกเลิก', 'danger'],
-        default     => [$s, 'muted'],
-    };
+    ];
+    return $labels[$s] ?? [$s, 'muted'];
 }
 
 /** @return array{0:string,1:string} */
 function payment_status_label(string $s): array
 {
-    return match ($s) {
+    $labels = [
         'unpaid'       => ['ยังไม่ชำระ', 'danger'],
         'deposit_paid' => ['มัดจำแล้ว', 'warn'],
         'paid'         => ['ชำระครบ', 'ok'],
         'refunded'     => ['คืนเงินแล้ว', 'muted'],
-        default        => [$s, 'muted'],
-    };
+    ];
+    return $labels[$s] ?? [$s, 'muted'];
 }
 
 function car_type_label(string $t): string
 {
-    return match ($t) {
+    $labels = [
         'eco'    => 'อีโคคาร์',
         'sedan'  => 'รถเก๋ง',
         'suv'    => 'SUV',
         'pickup' => 'กระบะ',
         'van'    => 'รถตู้',
-        default  => $t,
-    };
+    ];
+    return $labels[$t] ?? $t;
 }
 
 /** ระดับน้ำมันเป็นข้อความ (ระบบเก็บเป็นขีด 0–8) */
@@ -309,22 +311,37 @@ function hex_to_rgb(string $hex, string $fallback): array
 function mix_rgb(array $rgb, float $t): array
 {
     $target = $t >= 0 ? 255 : 0;
-    $t = abs($t);
-    return array_map(static fn($c) => (int) round($c + ($target - $c) * $t), $rgb);
+    $t      = abs($t);
+    $mixed  = [];
+    foreach ($rgb as $channel) {
+        $mixed[] = (int) round($channel + ($target - $channel) * $t);
+    }
+    return $mixed;
 }
 
 /** <style> ตัวแปรสีแบรนด์ (รูปแบบ "r g b" เพื่อใช้กับ rgb(var(--x) / alpha) ของ Tailwind) */
 function brand_style(string $defPrimary = '#1f2d3d', string $defAccent = '#e09a3c', string $defDark = '#16212e'): string
 {
-    $p = hex_to_rgb((string) setting('brand_primary', $defPrimary), $defPrimary);
-    $a = hex_to_rgb((string) setting('brand_accent', $defAccent), $defAccent);
-    $d = hex_to_rgb((string) setting('brand_dark', $defDark), $defDark);
-    $f = static fn(array $c) => implode(' ', $c);
-    return '<style>:root{'
-        . '--c-brand:' . $f($p) . ';--c-brand-700:' . $f(mix_rgb($p, -0.28)) . ';--c-brand-100:' . $f(mix_rgb($p, 0.82)) . ';--c-brand-50:' . $f(mix_rgb($p, 0.93)) . ';'
-        . '--c-accent:' . $f($a) . ';--c-accent-600:' . $f(mix_rgb($a, -0.14)) . ';--c-accent-100:' . $f(mix_rgb($a, 0.72)) . ';--c-accent-50:' . $f(mix_rgb($a, 0.9)) . ';'
-        . '--c-dark:' . $f($d) . ';'
-        . '}</style>';
+    $primary = hex_to_rgb((string) setting('brand_primary', $defPrimary), $defPrimary);
+    $accent  = hex_to_rgb((string) setting('brand_accent', $defAccent), $defAccent);
+    $dark    = hex_to_rgb((string) setting('brand_dark', $defDark), $defDark);
+
+    $vars = [
+        '--c-brand'      => $primary,
+        '--c-brand-700'  => mix_rgb($primary, -0.28),
+        '--c-brand-100'  => mix_rgb($primary, 0.82),
+        '--c-brand-50'   => mix_rgb($primary, 0.93),
+        '--c-accent'     => $accent,
+        '--c-accent-600' => mix_rgb($accent, -0.14),
+        '--c-accent-100' => mix_rgb($accent, 0.72),
+        '--c-accent-50'  => mix_rgb($accent, 0.9),
+        '--c-dark'       => $dark,
+    ];
+    $css = '';
+    foreach ($vars as $name => $rgb) {
+        $css .= $name . ':' . implode(' ', $rgb) . ';';
+    }
+    return '<style>:root{' . $css . '}</style>';
 }
 
 // ------------------------------------------------------------

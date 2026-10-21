@@ -72,7 +72,7 @@ class DashboardController extends AdminController
             'trend'        => $trend,
             'maxTrend'     => max(1, $trend ? max(array_column($trend, 'value')) : 1),
             'perCar'       => $perCar,
-            'maxCarRev'    => max(1, $perCar ? max(array_map(fn($r) => (float) $r['revenue'], $perCar)) : 1),
+            'maxCarRev'    => max(1, $perCar ? (float) max(array_column($perCar, 'revenue')) : 1),
             'carStatus'    => Car::statusCounts(),
         ]);
     }

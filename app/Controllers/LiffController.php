@@ -70,13 +70,17 @@ class LiffController extends Controller
             return $this->fail('หน้าเว็บหมดอายุ กรุณารีเฟรชแล้วลองใหม่', 419);
         }
 
-        return match ($act) {
-            'state'  => $this->json($this->state()),
-            'link'   => $this->link($uid),
-            'unlink' => $this->unlink($uid),
-            'slip'   => $this->slip($uid),
-            default  => $this->fail('ไม่รู้จักคำสั่งนี้', 404),
-        };
+        switch ($act) {
+            case 'state':
+                return $this->json($this->state());
+            case 'link':
+                return $this->link($uid);
+            case 'unlink':
+                return $this->unlink($uid);
+            case 'slip':
+                return $this->slip($uid);
+        }
+        return $this->fail('ไม่รู้จักคำสั่งนี้', 404);
     }
 
     // ------------------------------------------------------------

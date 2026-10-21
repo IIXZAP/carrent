@@ -85,12 +85,17 @@ final class Database
     /** INSERT แล้วคืน id ล่าสุด */
     public static function insert(string $table, array $data): int
     {
-        $cols = array_keys($data);
-        $sql  = sprintf(
+        $columns      = [];
+        $placeholders = [];
+        foreach (array_keys($data) as $name) {
+            $columns[]      = "`$name`";
+            $placeholders[] = ":$name";
+        }
+        $sql = sprintf(
             'INSERT INTO `%s` (%s) VALUES (%s)',
             $table,
-            implode(',', array_map(static fn($c) => "`$c`", $cols)),
-            implode(',', array_map(static fn($c) => ":$c", $cols))
+            implode(',', $columns),
+            implode(',', $placeholders)
         );
         $st = self::pdo()->prepare($sql);
         foreach ($data as $k => $v) {

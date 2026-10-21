@@ -24,13 +24,13 @@ class HealthController extends AdminController
             // ตารางยังไม่มี — ข้าม
         }
 
-        $checks = HealthService::checks();
-        $count  = ['ok' => 0, 'warn' => 0, 'fail' => 0];
-        foreach ($checks as $c) {
-            $count[$c[1]]++;
+        // จัดกลุ่มตามระดับ แล้วเรียงให้ข้อที่ต้องแก้ (fail) ขึ้นก่อน
+        $byLevel = ['fail' => [], 'warn' => [], 'ok' => []];
+        foreach (HealthService::checks() as $check) {
+            $byLevel[$check[1]][] = $check;
         }
-        // เรียงให้ข้อที่ต้องแก้ขึ้นก่อน
-        usort($checks, fn($a, $b) => array_search($a[1], ['fail', 'warn', 'ok']) <=> array_search($b[1], ['fail', 'warn', 'ok']));
+        $count  = ['ok' => count($byLevel['ok']), 'warn' => count($byLevel['warn']), 'fail' => count($byLevel['fail'])];
+        $checks = array_merge($byLevel['fail'], $byLevel['warn'], $byLevel['ok']);
 
         return $this->view('admin/health/index', [
             'title'      => 'สุขภาพระบบ',

@@ -34,10 +34,13 @@ final class DeliveryFeeService
             }
         }
 
-        usort($tiers, function (array $a, array $b): int {
-            return $a['max_km'] <=> $b['max_km'];
-        });
+        usort($tiers, [self::class, 'byDistance']);
         return $tiers;
+    }
+
+    private static function byDistance(array $a, array $b): int
+    {
+        return $a['max_km'] <=> $b['max_km'];
     }
 
     /** ระยะทางที่ส่งฟรี (กม.) */

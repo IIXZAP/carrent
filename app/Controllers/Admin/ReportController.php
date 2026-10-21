@@ -36,11 +36,11 @@ class ReportController extends AdminController
             return $this->exportCsv($perCar, $costByCar, $from, $to, $days);
         }
 
-        $revenue  = array_sum(array_map(fn($r) => (float) $r['revenue'], $perCar));
+        $revenue  = (float) array_sum(array_column($perCar, 'revenue'));
         $cost     = array_sum($costByCar);
-        $rentDays = array_sum(array_map(fn($r) => (int) $r['rent_days'], $perCar));
+        $rentDays = (int) array_sum(array_column($perCar, 'rent_days'));
         $carCount = count($perCar);
-        $jobs     = array_sum(array_map(fn($r) => (int) $r['jobs'], $perCar));
+        $jobs     = (int) array_sum(array_column($perCar, 'jobs'));
         $daily    = Payment::dailyRevenue($from, $to);
 
         return $this->view('admin/reports/index', [
@@ -58,9 +58,9 @@ class ReportController extends AdminController
             'collected' => Payment::revenueCollected($from, $to),
             'jobs'      => $jobs,
             'avgTicket' => $jobs ? $revenue / $jobs : 0,
-            'maxRev'    => max(1, $perCar ? max(array_map(fn($r) => (float) $r['revenue'], $perCar)) : 1),
+            'maxRev'    => max(1, $perCar ? (float) max(array_column($perCar, 'revenue')) : 1),
             'daily'     => $daily,
-            'maxDaily'  => max(1, $daily ? max(array_map(fn($r) => (float) $r['amt'], $daily)) : 1),
+            'maxDaily'  => max(1, $daily ? (float) max(array_column($daily, 'amt')) : 1),
             'byType'    => Report::byCarType($from, $to),
             'bySource'  => Report::bySourcePickup($from, $to),
             'srcLabel'  => ['web' => 'จองผ่านเว็บ', 'admin' => 'หน้าร้าน', 'line' => 'LINE', 'phone' => 'โทรศัพท์'],

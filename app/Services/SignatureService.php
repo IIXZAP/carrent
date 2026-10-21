@@ -186,7 +186,7 @@ final class SignatureService
     {
         $ins = Inspection::get((int) $b['id'], $kind === 'return' ? 'in' : 'out');
         return hash('sha256', json_encode([
-            array_map(static fn($f) => $f[1], self::fields($b, $car, $kind)),
+            array_column(self::fields($b, $car, $kind), 1),
             $termsText,
             $ins ? array_column($ins['photos'], 'file_path') : [],
             $kind === 'return' ? Booking::extraLines($b) : [],
