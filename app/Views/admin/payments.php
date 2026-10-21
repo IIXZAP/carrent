@@ -8,7 +8,7 @@ $kindLabel   = ['deposit' => 'มัดจำ', 'balance' => 'ค่าเช่
                 'refund' => 'คืนเงินค่าเช่า', 'security_refund' => 'คืนเงินประกัน'];
 $methodLabel = ['cash' => 'เงินสด', 'transfer' => 'โอนธนาคาร', 'promptpay' => 'PromptPay', 'card' => 'บัตรเครดิต', 'deduct' => 'หักจากเงินประกัน'];
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+<div class="stat-grid-md">
   <div class="stat <?= $cntPending ? 'stat-danger' : 'stat-ok' ?>">
     <div class="lb">สลิปรอตรวจสอบ</div><div class="vl"><?= (int) $cntPending ?></div>
     <div class="sub">มูลค่า ฿<?= money0($sumPending) ?></div>

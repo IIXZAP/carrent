@@ -22,7 +22,7 @@ $steps  = [['done', 'จองรถ'], ['on', 'โอนมัดจำ + อ�
     <p class="mb-0 mt-2 text-sm text-muted">กรุณาบันทึกเลขที่นี้ไว้ ใช้สำหรับตรวจสอบสถานะและอัปโหลดสลิป</p>
   </div>
 
-  <div class="mt-6 grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] lg:gap-6">
+  <div class="main-side-grid">
     <div class="panel min-w-0">
       <h3>รายละเอียดการจอง</h3>
       <div class="table-wrap">

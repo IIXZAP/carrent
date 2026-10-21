@@ -5,7 +5,7 @@ $label = ['ok' => 'ปกติ', 'warn' => 'ควรดู', 'fail' => 'ต้
 $badge = ['ok' => 'ok', 'warn' => 'warn', 'fail' => 'danger'];
 $tone  = ['ok' => 'stat-ok', 'warn' => 'stat-accent', 'fail' => 'stat-danger'];
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+<div class="stat-grid-lg">
   <div class="stat <?= $tone[$overall] ?>">
     <div class="lb">ผลรวม</div>
     <div class="vl !text-[1.4rem]"><?= $overall === 'ok' ? 'ระบบปกติ' : ($overall === 'warn' ? 'มีข้อควรดู' : 'มีข้อต้องแก้') ?></div>

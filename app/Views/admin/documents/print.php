@@ -40,12 +40,12 @@ $th   = 'px-[11px] py-[9px] text-left text-[0.82rem] font-semibold bg-brand text
   </div>
 
   <div class="mb-[22px] grid gap-6 text-[0.9rem] sm:grid-cols-2">
-    <div class="rounded-xl bg-surface px-[15px] py-[13px] print:[print-color-adjust:exact]">
+    <div class="note-box">
       <b class="mb-[5px] block text-[0.76rem] uppercase tracking-wide text-muted">ผู้ให้เช่า</b>
       <?= e(setting('company_name') ?: setting('site_name')) ?><br>
       โทร <?= e(setting('phone')) ?>
     </div>
-    <div class="rounded-xl bg-surface px-[15px] py-[13px] print:[print-color-adjust:exact]">
+    <div class="note-box">
       <b class="mb-[5px] block text-[0.76rem] uppercase tracking-wide text-muted">ผู้เช่า / ลูกค้า</b>
       <?= e($doc['bill_name']) ?><br>
       <?= $doc['bill_tax_id'] ? 'เลขผู้เสียภาษี ' . e($doc['bill_tax_id']) . '<br>' : '' ?>
@@ -102,13 +102,13 @@ $th   = 'px-[11px] py-[9px] text-left text-[0.82rem] font-semibold bg-brand text
   </p>
 
   <?php if ($doc['doc_type'] !== 'receipt'): ?>
-    <div class="mt-5 rounded-xl bg-surface px-[15px] py-[13px] text-[0.84rem] text-ink-2 print:[print-color-adjust:exact]">
+    <div class="note-box mt-5 text-[0.84rem] text-ink-2">
       <b>การชำระเงิน:</b> โอนเข้าบัญชี <?= e(setting('bank_name')) ?> เลขที่ <?= e(setting('bank_account_no')) ?>
       ชื่อบัญชี <?= e(setting('bank_account_name')) ?><?= setting('promptpay_id') ? ' · PromptPay ' . e(setting('promptpay_id')) : '' ?>
       <?php if ($doc['note']): ?><br><b>หมายเหตุ:</b> <?= nl2br(e($doc['note'])) ?><?php endif; ?>
     </div>
   <?php elseif ($doc['note']): ?>
-    <div class="mt-5 rounded-xl bg-surface px-[15px] py-[13px] text-[0.84rem] text-ink-2 print:[print-color-adjust:exact]"><b>หมายเหตุ:</b> <?= nl2br(e($doc['note'])) ?></div>
+    <div class="note-box mt-5 text-[0.84rem] text-ink-2"><b>หมายเหตุ:</b> <?= nl2br(e($doc['note'])) ?></div>
   <?php endif; ?>
 
   <div class="mt-[52px] grid grid-cols-2 gap-10 text-center text-[0.86rem] text-ink-2">

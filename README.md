@@ -21,8 +21,13 @@ app/
 ├─ Core/                  ตัวขับเคลื่อน: Router, Request, Response, View, Controller, Model,
 │                         Database (PDO), Session, Csrf, Flash, ErrorHandler
 ├─ Models/                เข้าถึงข้อมูล (static, PDO) — Booking, Car, Customer, Payment, ...
-├─ Services/              กฎธุรกิจ — PricingService, AvailabilityService, BookingService,
-│                         PaymentService, LineService, SignatureService, BackupService, ...
+├─ Services/              กฎธุรกิจ แยกเป็นคลาสเล็กๆ คลาสละหน้าที่เดียว:
+│                         จอง     WebBookingService (ลูกค้า) · AdminBookingService (หลังบ้าน) · BookingActionService
+│                                 (ยืนยัน/ส่งมอบ/ยกเลิก/รับเงิน) · ReturnService · ExtendService · SecurityDepositService
+│                         ราคา    PricingService · DeliveryFeeService · LateReturnService · AvailabilityService
+│                         ติดต่อ  LineService · NotificationService · SignatureService
+│                         ระบบ    PaymentService · UploadService · PrivateFileService · BackupService ·
+│                                 HealthService · MonthlyReportService · CronService
 ├─ Middleware/            AuthMiddleware (ต้องล็อกอิน), AdminMiddleware (เฉพาะเจ้าของร้าน)
 ├─ Controllers/           หน้าเว็บลูกค้า, API, LINE (LIFF/webhook)
 │  └─ Admin/              ตัวควบคุมหลังบ้านทั้งหมด
@@ -33,6 +38,14 @@ app/
    ├─ public/             หน้าลูกค้า (หน้าแรก รถ จอง ตรวจสอบ เซ็นเอกสาร LIFF)
    └─ admin/              หน้าหลังบ้าน
 ```
+
+### แนวทางเขียนโค้ด (อ่านง่ายสำหรับ junior)
+
+- เมธอดสั้น ทำหน้าที่เดียว ตั้งชื่อบอกหน้าที่ (เช่น `checkContact`, `saveWithRetry`, `notifyCustomer`)
+- ใช้ `if` / `foreach` / `switch` ธรรมดา เลี่ยง closure, `match` และ one-liner ซ้อนกัน
+- ตรวจเงื่อนไขที่ผิดก่อนแล้ว `return` / `throw` ทันที (early return) ไม่เขียน `if` ซ้อนหลายชั้น
+- คอมเมนต์ภาษาไทยสั้นๆ อธิบาย "ทำไม" ไม่ใช่ "ทำอะไร"
+- ใน View ใช้คลาส Tailwind ที่ตั้งชื่อไว้ใน `input.css` (เช่น `btn`, `panel`, `eyebrow`, `stat-grid-lg`) แทนสายคลาสยาวๆ ที่ซ้ำกัน
 
 ### การไหลของคำขอ
 

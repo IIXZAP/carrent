@@ -11,7 +11,7 @@ $this->layout('layouts/public', [
 ?>
 <section class="bg-gradient-to-b from-[#eaf2fc] to-surface py-7">
   <div class="wrap">
-    <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">Contact</div>
+    <div class="eyebrow">Contact</div>
     <h1 class="mb-1">ติดต่อเรา</h1>
     <p class="mb-0 text-muted">ทีมงานพร้อมให้บริการทุกวัน
       <?= e(setting('open_time')) ?> - <?= e(setting('close_time')) ?> น.</p>
@@ -50,7 +50,7 @@ $this->layout('layouts/public', [
       <?php endif; ?>
     </div>
 
-    <div class="mt-6 grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] lg:gap-6">
+    <div class="main-side-grid">
       <div class="panel min-w-0">
         <h3>ข้อมูลบริษัท</h3>
         <div class="table-wrap">

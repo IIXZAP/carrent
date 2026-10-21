@@ -89,14 +89,14 @@ $why = [
   <div class="wrap">
     <div class="mb-[18px] lg:flex lg:items-end lg:justify-between lg:gap-5">
       <div>
-        <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">Our Cars</div>
+        <div class="eyebrow">Our Cars</div>
         <h2 class="mb-1">รถเช่าของเรา</h2>
         <p class="m-0 text-[0.9rem] text-ink-2">เลือกประเภทรถที่เหมาะกับการเดินทางของคุณ</p>
       </div>
       <a class="mt-1.5 inline-flex min-h-[44px] items-center gap-[5px] py-2.5 text-[0.88rem] font-semibold lg:mt-0" href="<?= url('cars') ?>">ดูรถทั้งหมด <?= icon('arrow', 'h-[15px] w-[15px]') ?></a>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-[18px]">
+    <div class="car-grid">
       <?php foreach ($cars as $c): ?>
         <?= $this->partial('partials/car_card', ['c' => $c]) ?>
       <?php endforeach; ?>
@@ -108,14 +108,14 @@ $why = [
 <section class="border-y border-line bg-white py-9 sm:py-11 lg:py-14">
   <div class="wrap">
     <div class="mb-[18px]">
-      <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">How it works</div>
+      <div class="eyebrow">How it works</div>
       <h2 class="mb-1">4 ขั้นตอนง่ายๆ ในการเช่ารถ</h2>
       <p class="m-0 text-[0.9rem] text-ink-2">จองรถออนไลน์ได้ภายในไม่กี่นาที พร้อมออกเดินทาง</p>
     </div>
 
     <div class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       <?php foreach ($steps as $i => [$ic, $t, $d]): ?>
-        <div class="flex items-start gap-3 rounded-xl border border-line-2 bg-surface p-3.5">
+        <div class="media-card">
           <span class="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-accent text-[0.86rem] font-extrabold text-brand-700"><?= $i + 1 ?></span>
           <div>
             <h4 class="mb-[3px] text-[0.93rem]"><?= e($t) ?></h4>
@@ -135,7 +135,7 @@ $why = [
 <section class="py-9 sm:py-11 lg:py-14">
   <div class="wrap">
     <div class="mb-[18px]">
-      <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">Why us</div>
+      <div class="eyebrow">Why us</div>
       <h2 class="mb-1">ทำไมลูกค้าถึงเลือกเรา</h2>
     </div>
     <div class="grid gap-3.5 sm:grid-cols-3 sm:gap-4">

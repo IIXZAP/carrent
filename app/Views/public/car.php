@@ -35,7 +35,7 @@ $this->layout('layouts/public', ['title' => $title, 'desc' => $desc, 'active' =>
           <?php endif; ?>
         </div>
 
-        <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600"><?= e($car['segment'] ?: car_type_label($car['car_type'])) ?></div>
+        <div class="eyebrow"><?= e($car['segment'] ?: car_type_label($car['car_type'])) ?></div>
         <h1 class="mb-[0.2em]"><?= e($carName) ?> <?= e($car['year'] ?: '') ?></h1>
         <p class="text-sm text-muted">สี<?= e($car['color']) ?> · ทะเบียน <?= e($car['plate']) ?> <?= e($car['province']) ?></p>
 

@@ -2,7 +2,7 @@
 /** สำรองข้อมูล — ตัวแปร: list, total, keep, last, ageH, upBytes, upFiles */
 $this->layout('layouts/admin', ['title' => $title, 'active' => 'backups']);
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+<div class="stat-grid-lg">
   <div class="stat <?= $ageH === null || $ageH > 36 ? 'stat-danger' : 'stat-ok' ?>">
     <div class="lb">สำรองล่าสุด</div>
     <div class="vl !text-[1.25rem]"><?= $last !== '' ? e(thai_date($last, true)) : 'ยังไม่เคย' ?></div>

@@ -11,7 +11,7 @@ $this->layout('layouts/public', [
 ?>
 <section class="bg-gradient-to-b from-[#eaf2fc] to-surface py-7">
   <div class="wrap">
-    <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">FAQ</div>
+    <div class="eyebrow">FAQ</div>
     <h1 class="mb-1">คำถามที่พบบ่อย</h1>
     <p class="mb-0 text-muted">รวมเรื่องที่ลูกค้าถามบ่อยที่สุด ถ้าไม่พบคำตอบ โทรถามเราได้เลย</p>
   </div>

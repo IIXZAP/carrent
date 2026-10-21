@@ -37,7 +37,7 @@ $this->layout('layouts/admin', ['title' => $title, 'active' => 'bookings']);
   <a class="btn btn-sm ml-auto" href="<?= url('admin/bookings/new') ?>">+ จองใหม่</a>
 </form>
 
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+<div class="stat-grid-sm">
   <div class="stat"><div class="lb">จำนวนรายการ</div><div class="vl"><?= (int) $total ?></div></div>
   <?php if ($isOwner): ?>
     <div class="stat stat-brand"><div class="lb">มูลค่ารวม</div><div class="vl">฿<?= money0($sumTotal) ?></div><div class="sub">ไม่รวมรายการที่ยกเลิก</div></div>

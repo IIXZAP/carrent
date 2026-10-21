@@ -35,7 +35,7 @@ $menu   = \App\Services\AdminNavService::menu();
     </div>
     <nav class="flex-1 px-2.5 pb-6 pt-2.5">
       <?php foreach ($menu as $group => $items): ?>
-        <div class="px-2.5 pb-1.5 pt-4 text-[0.7rem] font-bold uppercase tracking-[0.07em] text-white/35"><?= e($group) ?></div>
+        <div class="side-heading"><?= e($group) ?></div>
         <?php foreach ($items as $it): ?>
           <a class="mb-0.5 flex items-center gap-2.5 rounded-lg px-[11px] py-[9px] text-[0.92rem] no-underline hover:bg-white/10 hover:text-white <?= $active === $it['key'] ? 'bg-brand font-semibold text-white' : 'text-white/75' ?>"
              href="<?= url($it['path']) ?>">
@@ -46,10 +46,10 @@ $menu   = \App\Services\AdminNavService::menu();
           </a>
         <?php endforeach; ?>
       <?php endforeach; ?>
-      <div class="px-2.5 pb-1.5 pt-4 text-[0.7rem] font-bold uppercase tracking-[0.07em] text-white/35">อื่นๆ</div>
-      <a class="mb-0.5 flex items-center gap-2.5 rounded-lg px-[11px] py-[9px] text-[0.92rem] text-white/75 no-underline hover:bg-white/10 hover:text-white" href="<?= url('') ?>" target="_blank" rel="noopener">
+      <div class="side-heading">อื่นๆ</div>
+      <a class="side-link" href="<?= url('') ?>" target="_blank" rel="noopener">
         <span class="w-[18px] flex-none text-center opacity-90">🌐</span>ดูหน้าเว็บลูกค้า</a>
-      <a class="mb-0.5 flex items-center gap-2.5 rounded-lg px-[11px] py-[9px] text-[0.92rem] text-white/75 no-underline hover:bg-white/10 hover:text-white" href="<?= url('admin/logout') ?>">
+      <a class="side-link" href="<?= url('admin/logout') ?>">
         <span class="w-[18px] flex-none text-center opacity-90">🚪</span>ออกจากระบบ</a>
     </nav>
   </aside>

@@ -19,7 +19,7 @@ $fuelFee = \App\Services\LateReturnService::fuelFeePerLevel();
 ?>
 <section class="bg-gradient-to-b from-[#eaf2fc] to-surface py-7">
   <div class="wrap">
-    <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">How it works</div>
+    <div class="eyebrow">How it works</div>
     <h1 class="mb-1">วิธีการเช่ารถ</h1>
     <p class="mb-0 text-muted">จองออนไลน์ได้ภายในไม่กี่นาที พร้อมออกเดินทาง</p>
   </div>
@@ -29,7 +29,7 @@ $fuelFee = \App\Services\LateReturnService::fuelFeePerLevel();
   <div class="wrap">
     <div class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       <?php foreach ($steps as $i => [$ic, $t, $d]): ?>
-        <div class="flex items-start gap-3 rounded-xl border border-line-2 bg-surface p-3.5">
+        <div class="media-card">
           <span class="grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] bg-accent text-[0.86rem] font-extrabold text-brand-700"><?= $i + 1 ?></span>
           <div><h4 class="mb-[3px] text-[0.93rem]"><?= e($t) ?></h4><p class="m-0 text-[0.82rem] leading-relaxed text-ink-2"><?= e($d) ?></p></div>
         </div>

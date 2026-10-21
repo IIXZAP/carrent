@@ -7,7 +7,7 @@
 $this->layout('layouts/admin', ['title' => $title, 'active' => 'dashboard']);
 $meterTone = $utilization < 40 ? 'danger' : ($utilization < 65 ? 'warn' : '');
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+<div class="stat-grid-lg">
   <?php if ($isOwner): ?>
     <div class="stat stat-brand">
       <div class="lb">รายได้รับจริงเดือนนี้</div>

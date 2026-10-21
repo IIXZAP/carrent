@@ -2,7 +2,7 @@
 /** งานประจำรถ — ตัวแปร: filter, rows, cars, today, warn, overdue, soon, costYear, typeLabel */
 $this->layout('layouts/admin', ['title' => $title, 'active' => 'maintenance']);
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]">
+<div class="stat-grid-md">
   <div class="stat <?= $overdue ? 'stat-danger' : 'stat-ok' ?>"><div class="lb">เลยกำหนดแล้ว</div><div class="vl"><?= (int) $overdue ?></div></div>
   <div class="stat stat-accent"><div class="lb">ครบใน <?= (int) $warn ?> วัน</div><div class="vl"><?= (int) $soon ?></div></div>
   <div class="stat stat-brand"><div class="lb">ค่าใช้จ่ายปีนี้</div><div class="vl">฿<?= money0($costYear) ?></div></div>

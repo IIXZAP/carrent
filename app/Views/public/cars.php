@@ -11,7 +11,7 @@ $this->layout('layouts/public', [
 ?>
 <section class="bg-gradient-to-b from-[#eaf2fc] to-surface pb-0 pt-[26px]">
   <div class="wrap">
-    <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">Our Cars</div>
+    <div class="eyebrow">Our Cars</div>
     <h1 class="mb-1">รถเช่าของเรา</h1>
     <p class="mb-0 text-muted">เลือกวันรับ–คืนรถ ระบบจะแสดงเฉพาะคันที่ว่างจริง พร้อมราคาสุทธิ</p>
   </div>
@@ -41,7 +41,7 @@ $this->layout('layouts/public', [
           <?= icon('phone') ?> <?= e(setting('phone')) ?></a>
       </div>
     <?php else: ?>
-      <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-[18px]">
+      <div class="car-grid">
         <?php foreach ($cars as $c):
             $link = url('cars/' . (int) $c['id'])
                   . ($searching ? '?pickup=' . urlencode($pickup) . '&ret=' . urlencode($ret) : ''); ?>

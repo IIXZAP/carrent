@@ -73,7 +73,7 @@ $this->layout('layouts/admin', ['title' => $title, 'active' => 'customers']);
         <?php if ($cdocs || !empty($v['id_card_file']) || !empty($v['license_file'])): ?>
           <ul class="mb-3 list-none p-0">
             <?php foreach ($cdocs as $d): ?>
-              <li class="flex items-center justify-between gap-2.5 border-t border-line py-2 first:border-t-0 first:pt-0">
+              <li class="list-row">
                 <span class="min-w-0"><b><?= e($docKinds[$d['doc_kind']] ?? $d['doc_kind']) ?></b>
                   <span class="block text-xs text-muted"><?= e(thai_date($d['created_at'], true)) ?><?= $d['uploader'] ? ' · ' . e($d['uploader']) : '' ?><?= $d['note'] ? ' · ' . e($d['note']) : '' ?></span></span>
                 <a class="btn btn-ghost btn-sm flex-none" href="<?= url('admin/customer-files/' . (int) $d['id']) ?>" target="_blank" rel="noopener">เปิดดู</a></li>
@@ -82,7 +82,7 @@ $this->layout('layouts/admin', ['title' => $title, 'active' => 'customers']);
                 if (empty($v[$lc])) {
                     continue;
                 } ?>
-              <li class="flex items-center justify-between gap-2.5 border-t border-line py-2 first:border-t-0 first:pt-0">
+              <li class="list-row">
                 <span class="min-w-0"><b><?= $lk === 'id_card' ? 'บัตรประชาชน' : 'ใบขับขี่' ?></b>
                   <span class="block text-xs text-muted">ไฟล์เดิม (ก่อนเวอร์ชัน 5)</span></span>
                 <a class="btn btn-ghost btn-sm flex-none" href="<?= url('admin/customers/' . $id . '/legacy/' . $lk) ?>" target="_blank" rel="noopener">เปิดดู</a></li>

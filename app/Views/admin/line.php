@@ -7,7 +7,7 @@
 $this->layout('layouts/admin', ['title' => $title, 'active' => 'line']);
 $allDone = $doneSteps === count($steps);
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+<div class="stat-grid-lg">
   <div class="stat <?= $allDone ? 'stat-ok' : 'stat-accent' ?>">
     <div class="lb">ความพร้อม</div>
     <div class="vl"><?= (int) $doneSteps ?>/<?= count($steps) ?></div>

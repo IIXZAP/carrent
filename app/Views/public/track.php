@@ -12,7 +12,7 @@ $this->layout('layouts/public', [
 ?>
 <section class="bg-gradient-to-b from-[#eaf2fc] to-surface py-7">
   <div class="wrap">
-    <div class="mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600">My booking</div>
+    <div class="eyebrow">My booking</div>
     <h1 class="mb-1">ตรวจสอบการจอง</h1>
     <p class="mb-0 text-muted">กรอกเลขที่การจองและเบอร์โทรศัพท์ที่ใช้จอง เพื่อดูสถานะและแจ้งโอนเงิน</p>
   </div>
@@ -42,7 +42,7 @@ $this->layout('layouts/public', [
       [$pLabel, $pColor] = payment_status_label($b['payment_status']);
       $balance = \App\Models\Booking::balance($b);   // รวมค่าใช้จ่ายเพิ่มตอนคืนรถ
   ?>
-    <div class="mt-6 grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] lg:gap-6">
+    <div class="main-side-grid">
       <div class="panel min-w-0">
         <div class="flex flex-wrap items-start justify-between gap-3.5">
           <div>

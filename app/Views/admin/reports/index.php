@@ -14,7 +14,7 @@ $meterTone = $util < 40 ? 'danger' : ($util < 65 ? 'warn' : '');
   <button type="button" class="btn btn-ghost btn-sm" onclick="window.print()">พิมพ์</button>
 </form>
 
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]">
+<div class="stat-grid-lg">
   <div class="stat stat-brand"><div class="lb">ยอดขาย (มูลค่างาน)</div><div class="vl">฿<?= money0($revenue) ?></div>
     <div class="sub"><?= (int) $jobs ?> งาน · เฉลี่ย ฿<?= money0($avgTicket) ?>/งาน</div></div>
   <div class="stat stat-ok"><div class="lb">เงินรับจริง</div><div class="vl">฿<?= money0($collected) ?></div>

@@ -3,7 +3,7 @@
 $this->layout('layouts/admin', ['title' => $title, 'active' => 'customers']);
 $tot = $totals['total'];
 ?>
-<div class="mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]">
+<div class="stat-grid-sm">
   <div class="stat stat-brand"><div class="lb">ลูกค้าทั้งหมด</div><div class="vl"><?= (int) $tot ?></div></div>
   <div class="stat stat-ok"><div class="lb">ลูกค้าที่กลับมาเช่าซ้ำ</div><div class="vl"><?= (int) $totals['repeat'] ?></div>
     <div class="sub"><?= $tot ? round($totals['repeat'] / $tot * 100) : 0 ?>% ของฐานลูกค้า</div></div>
