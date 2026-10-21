@@ -111,13 +111,19 @@ final class LineService
     /** แปลข้อผิดพลาดที่เจอบ่อยให้เป็นคำที่แก้ได้เอง */
     private static function errorHint(int $code, string $msg): string
     {
-        return match (true) {
-            $code === 0   => 'เชื่อมต่อ LINE ไม่ได้ (' . $msg . ')',
-            $code === 401 => 'Channel Access Token ไม่ถูกต้องหรือหมดอายุ ให้ออกใหม่ใน LINE Developers',
-            $code === 429 => 'ส่งข้อความเกินโควตาของแพ็กเกจ LINE OA เดือนนี้',
-            $code === 400 && str_contains($msg, 'not found') => 'ไม่พบผู้รับ — ผู้ใช้อาจยังไม่ได้เพิ่มเพื่อนกับ LINE OA ของร้าน',
-            default       => $msg,
-        };
+        if ($code === 0) {
+            return 'เชื่อมต่อ LINE ไม่ได้ (' . $msg . ')';
+        }
+        if ($code === 401) {
+            return 'Channel Access Token ไม่ถูกต้องหรือหมดอายุ ให้ออกใหม่ใน LINE Developers';
+        }
+        if ($code === 429) {
+            return 'ส่งข้อความเกินโควตาของแพ็กเกจ LINE OA เดือนนี้';
+        }
+        if ($code === 400 && str_contains($msg, 'not found')) {
+            return 'ไม่พบผู้รับ — ผู้ใช้อาจยังไม่ได้เพิ่มเพื่อนกับ LINE OA ของร้าน';
+        }
+        return $msg;
     }
 
     /** ห่อข้อความธรรมดาให้เป็นรูปแบบที่ LINE ต้องการ (ตัดที่ 4,900 ตัวอักษร เผื่อขีดจำกัด 5,000) */
@@ -138,11 +144,10 @@ final class LineService
         if (!$ids) {
             return [false, 'ไม่มี LINE user id ปลายทาง'];
         }
-        if (count($ids) === 1) {
-            [$ok, , $err] = self::api('POST', '/v2/bot/message/push', ['to' => $ids[0], 'messages' => [self::text($message)]]);
-        } else {
-            [$ok, , $err] = self::api('POST', '/v2/bot/message/multicast', ['to' => $ids, 'messages' => [self::text($message)]]);
-        }
+        // คนเดียวใช้ push หลายคนใช้ multicast
+        $path = count($ids) === 1 ? '/v2/bot/message/push' : '/v2/bot/message/multicast';
+        $to   = count($ids) === 1 ? $ids[0] : $ids;
+        [$ok, , $err] = self::api('POST', $path, ['to' => $to, 'messages' => [self::text($message)]]);
         return [$ok, $err];
     }
 
@@ -203,7 +208,11 @@ final class LineService
         if (isset($data['exp']) && (int) $data['exp'] < time()) {
             return null;
         }
-        return ['sub' => (string) $data['sub'], 'name' => (string) ($data['name'] ?? ''), 'picture' => (string) ($data['picture'] ?? '')];
+        return [
+            'sub'     => (string) $data['sub'],
+            'name'    => (string) ($data['name'] ?? ''),
+            'picture' => (string) ($data['picture'] ?? ''),
+        ];
     }
 
     // ------------------------------------------------------------
@@ -458,43 +467,15 @@ final class LineService
         if (!is_file($img)) {
             return [false, 'ไม่พบไฟล์รูปเมนู assets/img/richmenu.png'];
         }
-        $w = 2500;
-        $h = 843;
-        $third = (int) floor($w / 3);
-        $phone = preg_replace('/[^0-9+]/', '', (string) setting('phone'));
-        $areas = [
-            ['bounds' => ['x' => 0, 'y' => 0, 'width' => $third, 'height' => $h],
-             'action' => ['type' => 'uri', 'label' => 'จองรถ', 'uri' => site_url('cars')]],
-            ['bounds' => ['x' => $third, 'y' => 0, 'width' => $third, 'height' => $h],
-             'action' => ['type' => 'uri', 'label' => 'การจองของฉัน', 'uri' => self::liffUrl()]],
-            ['bounds' => ['x' => $third * 2, 'y' => 0, 'width' => $w - $third * 2, 'height' => $h],
-             'action' => $phone !== ''
-                 ? ['type' => 'uri', 'label' => 'โทรหาร้าน', 'uri' => 'tel:' . $phone]
-                 : ['type' => 'uri', 'label' => 'ติดต่อร้าน', 'uri' => site_url('contact')]],
-        ];
-        [$ok, $data, $err] = self::api('POST', '/v2/bot/richmenu', [
-            'size'        => ['width' => $w, 'height' => $h],
-            'selected'    => true,
-            'name'        => 'thonglorcarrent-main',
-            'chatBarText' => 'เมนู',
-            'areas'       => $areas,
-        ]);
-        if (!$ok || empty($data['richMenuId'])) {
-            return [false, 'สร้างเมนูไม่สำเร็จ: ' . $err];
-        }
-        $id = (string) $data['richMenuId'];
 
-        // อัปโหลดรูป — ใช้โดเมน api-data และส่งเป็นไฟล์ดิบ
-        [$code, $res, $cerr] = self::http(
-            'POST',
-            self::dataBase() . '/v2/bot/richmenu/' . rawurlencode($id) . '/content',
-            ['Authorization: Bearer ' . trim((string) setting('line_channel_token')), 'Content-Type: image/png'],
-            file_get_contents($img),
-            30
-        );
-        if ($code < 200 || $code >= 300) {
+        [$id, $error] = self::createRichMenu();
+        if ($id === '') {
+            return [false, $error];
+        }
+        $error = self::uploadRichMenuImage($id, $img);
+        if ($error !== '') {
             self::api('DELETE', '/v2/bot/richmenu/' . rawurlencode($id));
-            return [false, 'อัปโหลดรูปเมนูไม่สำเร็จ (' . $code . ') ' . ($cerr ?: mb_substr($res, 0, 150))];
+            return [false, $error];
         }
 
         [$ok, , $err] = self::api('POST', '/v2/bot/user/all/richmenu/' . rawurlencode($id));
@@ -502,12 +483,78 @@ final class LineService
             return [false, 'ตั้งเป็นเมนูหลักไม่สำเร็จ: ' . $err];
         }
 
-        // เมนูเก่าที่ระบบเคยสร้างไว้ไม่ใช้แล้ว — ลบออกจาก LINE เพื่อไม่ให้ค้างเกินโควตา 1,000 เมนู
-        $old = trim((string) setting('line_richmenu_id'));
-        if ($old !== '' && $old !== $id) {
-            self::api('DELETE', '/v2/bot/richmenu/' . rawurlencode($old));
-        }
+        self::deleteOldRichMenu($id);
         set_setting('line_richmenu_id', $id);
         return [true, 'ติดตั้งเมนูด้านล่างเรียบร้อย ลูกค้าจะเห็นเมื่อเปิดห้องแชตครั้งถัดไป'];
+    }
+
+    /** สร้างเมนูบน LINE (ยังไม่มีรูป) @return array{0:string,1:string} [id, ข้อความผิดพลาด] */
+    private static function createRichMenu(): array
+    {
+        $width  = 2500;
+        $height = 843;
+        [$ok, $data, $err] = self::api('POST', '/v2/bot/richmenu', [
+            'size'        => ['width' => $width, 'height' => $height],
+            'selected'    => true,
+            'name'        => 'thonglorcarrent-main',
+            'chatBarText' => 'เมนู',
+            'areas'       => self::richMenuAreas($width, $height),
+        ]);
+        if (!$ok || empty($data['richMenuId'])) {
+            return ['', 'สร้างเมนูไม่สำเร็จ: ' . $err];
+        }
+        return [(string) $data['richMenuId'], ''];
+    }
+
+    /** ปุ่ม 3 ช่อง: จองรถ / การจองของฉัน / โทรหาร้าน */
+    private static function richMenuAreas(int $width, int $height): array
+    {
+        $third = (int) floor($width / 3);
+        $phone = preg_replace('/[^0-9+]/', '', (string) setting('phone'));
+
+        $contact = ['type' => 'uri', 'label' => 'ติดต่อร้าน', 'uri' => site_url('contact')];
+        if ($phone !== '') {
+            $contact = ['type' => 'uri', 'label' => 'โทรหาร้าน', 'uri' => 'tel:' . $phone];
+        }
+
+        return [
+            [
+                'bounds' => ['x' => 0, 'y' => 0, 'width' => $third, 'height' => $height],
+                'action' => ['type' => 'uri', 'label' => 'จองรถ', 'uri' => site_url('cars')],
+            ],
+            [
+                'bounds' => ['x' => $third, 'y' => 0, 'width' => $third, 'height' => $height],
+                'action' => ['type' => 'uri', 'label' => 'การจองของฉัน', 'uri' => self::liffUrl()],
+            ],
+            [
+                'bounds' => ['x' => $third * 2, 'y' => 0, 'width' => $width - $third * 2, 'height' => $height],
+                'action' => $contact,
+            ],
+        ];
+    }
+
+    /** อัปโหลดรูปเมนู — ใช้โดเมน api-data และส่งเป็นไฟล์ดิบ @return string ข้อความผิดพลาด ('' = สำเร็จ) */
+    private static function uploadRichMenuImage(string $id, string $imagePath): string
+    {
+        [$code, $res, $curlError] = self::http(
+            'POST',
+            self::dataBase() . '/v2/bot/richmenu/' . rawurlencode($id) . '/content',
+            ['Authorization: Bearer ' . trim((string) setting('line_channel_token')), 'Content-Type: image/png'],
+            file_get_contents($imagePath),
+            30
+        );
+        if ($code >= 200 && $code < 300) {
+            return '';
+        }
+        return 'อัปโหลดรูปเมนูไม่สำเร็จ (' . $code . ') ' . ($curlError ?: mb_substr($res, 0, 150));
+    }
+
+    /** เมนูเก่าที่ระบบเคยสร้างไว้ไม่ใช้แล้ว — ลบออกเพื่อไม่ให้ค้างเกินโควตา 1,000 เมนู */
+    private static function deleteOldRichMenu(string $newId): void
+    {
+        $old = trim((string) setting('line_richmenu_id'));
+        if ($old !== '' && $old !== $newId) {
+            self::api('DELETE', '/v2/bot/richmenu/' . rawurlencode($old));
+        }
     }
 }
