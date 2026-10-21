@@ -93,35 +93,82 @@ final class SignatureService
     public static function changes(array $sig, array $b, array $car): array
     {
         $snap = json_decode((string) $sig['snapshot'], true) ?: [];
-        $old  = $snap['fields'] ?? [];
-        $out  = [];
-        foreach (self::fields($b, $car, (string) $sig['kind']) as $k => [$label, $now]) {
-            if (array_key_exists($k, $old) && (string) $old[$k] !== (string) $now) {
-                $out[] = ['label' => $label, 'signed' => (string) $old[$k], 'now' => (string) $now];
-            }
+
+        $out = self::changedFields($snap, $sig, $b, $car);
+        $photos = self::changedPhotos($snap, $sig, $b);
+        if ($photos) {
+            $out[] = $photos;
         }
-        // รูปสภาพรถ: ชุดรูปที่ลูกค้าเห็นตอนเซ็น ต้องเป็นชุดเดียวกับที่ใช้อยู่ตอนนี้
-        // เทียบเฉพาะเมื่อตอนเซ็นมีรูปให้ลูกค้าดู — ถ้าเซ็นก่อนถ่ายรูป (เช่น ส่งลิงก์ทาง LINE ล่วงหน้า) ลายเซ็นไม่ได้รับรองรูปอยู่แล้ว
-        // การถ่ายรูปทีหลังจึงไม่ใช่ "การแก้ไขหลังลงนาม" (ใบแนบสภาพรถของฉบับพิมพ์จะเว้นช่องให้เซ็นมือแทน)
-        $oldPics = (array) ($snap['inspection']['files'] ?? []);
-        $ins     = $oldPics ? Inspection::get((int) $b['id'], $sig['kind'] === 'return' ? 'in' : 'out') : null;
-        $nowPics = $ins ? array_column($ins['photos'], 'file_path') : [];
-        sort($nowPics);
-        sort($oldPics);
-        if ($oldPics && $nowPics !== $oldPics) {
-            $out[] = ['label' => 'รูปสภาพรถ', 'signed' => count($oldPics) . ' รูป', 'now' => count($nowPics) . ' รูป (มีการเพิ่มหรือถ่ายใหม่)'];
-        }
-        // รายการค่าใช้จ่ายตอนคืนรถ
         if ($sig['kind'] === 'return') {
-            $norm = static fn(array $ls): string => json_encode(array_map(
-                static fn($l) => [(string) ($l['label'] ?? ''), round((float) ($l['amount'] ?? 0), 2), !empty($l['waived'])],
-                $ls
-            ), JSON_UNESCAPED_UNICODE);
-            if ($norm((array) ($snap['extras'] ?? [])) !== $norm(Booking::extraLines($b))) {
-                $out[] = ['label' => 'รายการค่าใช้จ่ายเพิ่ม', 'signed' => count((array) ($snap['extras'] ?? [])) . ' รายการ', 'now' => count(Booking::extraLines($b)) . ' รายการ'];
+            $extras = self::changedExtras($snap, $b);
+            if ($extras) {
+                $out[] = $extras;
             }
         }
         return $out;
+    }
+
+    /** ช่องข้อมูลหลัก (ผู้เช่า รถ วันที่ ยอดเงิน ...) ที่ค่าไม่ตรงกับตอนเซ็น */
+    private static function changedFields(array $snap, array $sig, array $b, array $car): array
+    {
+        $old = $snap['fields'] ?? [];
+        $out = [];
+        foreach (self::fields($b, $car, (string) $sig['kind']) as $key => [$label, $now]) {
+            if (array_key_exists($key, $old) && (string) $old[$key] !== (string) $now) {
+                $out[] = ['label' => $label, 'signed' => (string) $old[$key], 'now' => (string) $now];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * รูปสภาพรถ: ชุดรูปที่ลูกค้าเห็นตอนเซ็น ต้องเป็นชุดเดียวกับที่ใช้อยู่ตอนนี้
+     * เทียบเฉพาะเมื่อตอนเซ็นมีรูปให้ลูกค้าดู — ถ้าเซ็นก่อนถ่ายรูป ลายเซ็นไม่ได้รับรองรูปอยู่แล้ว
+     * @return ?array null = ไม่มีการเปลี่ยนแปลง
+     */
+    private static function changedPhotos(array $snap, array $sig, array $b): ?array
+    {
+        $oldPics = (array) ($snap['inspection']['files'] ?? []);
+        if (!$oldPics) {
+            return null;
+        }
+        $ins     = Inspection::get((int) $b['id'], $sig['kind'] === 'return' ? 'in' : 'out');
+        $nowPics = $ins ? array_column($ins['photos'], 'file_path') : [];
+        sort($nowPics);
+        sort($oldPics);
+        if ($nowPics === $oldPics) {
+            return null;
+        }
+        return [
+            'label'  => 'รูปสภาพรถ',
+            'signed' => count($oldPics) . ' รูป',
+            'now'    => count($nowPics) . ' รูป (มีการเพิ่มหรือถ่ายใหม่)',
+        ];
+    }
+
+    /** รายการค่าใช้จ่ายตอนคืนรถ (ใช้กับใบรับคืนรถเท่านั้น) @return ?array null = ไม่มีการเปลี่ยนแปลง */
+    private static function changedExtras(array $snap, array $b): ?array
+    {
+        $oldLines = (array) ($snap['extras'] ?? []);
+        $nowLines = Booking::extraLines($b);
+        if (self::extrasKey($oldLines) === self::extrasKey($nowLines)) {
+            return null;
+        }
+        return [
+            'label'  => 'รายการค่าใช้จ่ายเพิ่ม',
+            'signed' => count($oldLines) . ' รายการ',
+            'now'    => count($nowLines) . ' รายการ',
+        ];
+    }
+
+    /** แปลงรายการค่าใช้จ่ายเป็นข้อความเดียว เอาไว้เทียบว่าเหมือนกันหรือไม่ */
+    private static function extrasKey(array $lines): string
+    {
+        $simple = [];
+        foreach ($lines as $line) {
+            $simple[] = [(string) ($line['label'] ?? ''), round((float) ($line['amount'] ?? 0), 2), !empty($line['waived'])];
+        }
+        return json_encode($simple, JSON_UNESCAPED_UNICODE);
     }
 
     /** สำเนาเก็บไว้ตรงกับ hash หรือไม่ — false = ข้อมูลในฐานข้อมูลถูกแก้โดยตรง */
@@ -172,50 +219,86 @@ final class SignatureService
      */
     public static function toPng(string $dataUrl): string
     {
-        if (!preg_match('#^data:image/png;base64,([A-Za-z0-9+/=\s]+)$#', $dataUrl, $m)) {
-            throw new \RuntimeException('กรุณาเซ็นชื่อในกรอบก่อนกดยืนยัน');
-        }
-        $bin = base64_decode($m[1], true);
-        if ($bin === false || strlen($bin) < 200 || strlen($bin) > 600 * 1024) {
-            throw new \RuntimeException('ลายเซ็นไม่ถูกต้อง กรุณาเซ็นใหม่อีกครั้ง');
-        }
-        $info = @getimagesizefromstring($bin);
-        if (!$info || $info[2] !== IMAGETYPE_PNG || $info[0] < 120 || $info[1] < 60 || $info[0] > 2400 || $info[1] > 1600) {
-            throw new \RuntimeException('ลายเซ็นไม่ถูกต้อง กรุณาเซ็นใหม่อีกครั้ง');
-        }
+        $bin = self::decodeDataUrl($dataUrl);
+        self::checkPngSize($bin);
+
         if (!function_exists('imagecreatefromstring')) {
             return $bin;   // โฮสต์ไม่มี GD — เก็บตามที่ได้รับ (ผ่านการตรวจว่าเป็น PNG แล้ว)
         }
         $src = @imagecreatefromstring($bin);
         if (!$src) {
-            throw new \RuntimeException('ลายเซ็นไม่ถูกต้อง กรุณาเซ็นใหม่อีกครั้ง');
+            throw new \RuntimeException(self::INVALID_SIGNATURE);
         }
-        [$w, $h] = [imagesx($src), imagesy($src)];
-        $dst = imagecreatetruecolor($w, $h);
-        imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
-        imagealphablending($dst, true);
-        imagecopy($dst, $src, 0, 0, 0, 0, $w, $h);
+        $image = self::onWhiteBackground($src);
+        imagedestroy($src);
 
-        // นับจุดหมึกแบบสุ่มตัวอย่างทุก 3 พิกเซล — ลายเซ็นจริงมีหมึกหลายร้อยจุด จุดเดียวหรือขีดสั้นๆ ไม่ผ่าน
-        $ink = 0;
-        for ($y = 0; $y < $h; $y += 3) {
-            for ($x = 0; $x < $w; $x += 3) {
-                $c = imagecolorat($dst, $x, $y);
-                if ((($c >> 16) & 255) + (($c >> 8) & 255) + ($c & 255) < 500) {
+        if (self::countInk($image) < 60) {
+            imagedestroy($image);
+            throw new \RuntimeException('ลายเซ็นสั้นเกินไป กรุณาเซ็นชื่อให้ชัดเจนอีกครั้ง');
+        }
+        ob_start();
+        imagepng($image, null, 7);
+        $png = (string) ob_get_clean();
+        imagedestroy($image);
+        return $png;
+    }
+
+    private const INVALID_SIGNATURE = 'ลายเซ็นไม่ถูกต้อง กรุณาเซ็นใหม่อีกครั้ง';
+
+    /** ถอดรหัส data URL (data:image/png;base64,...) เป็นข้อมูลไบนารี */
+    private static function decodeDataUrl(string $dataUrl): string
+    {
+        if (!preg_match('#^data:image/png;base64,([A-Za-z0-9+/=\s]+)$#', $dataUrl, $m)) {
+            throw new \RuntimeException('กรุณาเซ็นชื่อในกรอบก่อนกดยืนยัน');
+        }
+        $bin = base64_decode($m[1], true);
+        if ($bin === false || strlen($bin) < 200 || strlen($bin) > 600 * 1024) {
+            throw new \RuntimeException(self::INVALID_SIGNATURE);
+        }
+        return $bin;
+    }
+
+    /** ต้องเป็น PNG จริงและมีขนาดภาพสมเหตุผล */
+    private static function checkPngSize(string $bin): void
+    {
+        $info = @getimagesizefromstring($bin);
+        if (!$info || $info[2] !== IMAGETYPE_PNG) {
+            throw new \RuntimeException(self::INVALID_SIGNATURE);
+        }
+        [$width, $height] = [$info[0], $info[1]];
+        if ($width < 120 || $height < 60 || $width > 2400 || $height > 1600) {
+            throw new \RuntimeException(self::INVALID_SIGNATURE);
+        }
+    }
+
+    /** วาดรูปลงบนพื้นขาวผืนใหม่ (พื้นโปร่งใสจะกลายเป็นสีขาว) */
+    private static function onWhiteBackground($src)
+    {
+        $width  = imagesx($src);
+        $height = imagesy($src);
+        $image  = imagecreatetruecolor($width, $height);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        imagealphablending($image, true);
+        imagecopy($image, $src, 0, 0, 0, 0, $width, $height);
+        return $image;
+    }
+
+    /** นับจุดหมึกแบบสุ่มตัวอย่างทุก 3 พิกเซล — ลายเซ็นจริงมีหมึกหลายร้อยจุด จุดเดียวหรือขีดสั้นๆ ไม่ผ่าน */
+    private static function countInk($image): int
+    {
+        $width  = imagesx($image);
+        $height = imagesy($image);
+        $ink    = 0;
+        for ($y = 0; $y < $height; $y += 3) {
+            for ($x = 0; $x < $width; $x += 3) {
+                $color = imagecolorat($image, $x, $y);
+                $sum   = (($color >> 16) & 255) + (($color >> 8) & 255) + ($color & 255);
+                if ($sum < 500) {
                     $ink++;
                 }
             }
         }
-        imagedestroy($src);
-        if ($ink < 60) {
-            imagedestroy($dst);
-            throw new \RuntimeException('ลายเซ็นสั้นเกินไป กรุณาเซ็นชื่อให้ชัดเจนอีกครั้ง');
-        }
-        ob_start();
-        imagepng($dst, null, 7);
-        $out = (string) ob_get_clean();
-        imagedestroy($dst);
-        return $out;
+        return $ink;
     }
 
     /**
@@ -225,38 +308,67 @@ final class SignatureService
      */
     public static function save(array $b, array $car, string $kind, string $dataUrl, string $name, bool $acceptTerms, bool $consent, string $termsText): int
     {
-        if ($msg = self::blocker($b, $kind)) {
-            throw new \RuntimeException($msg);
+        $blocked = self::blocker($b, $kind);
+        if ($blocked) {
+            throw new \RuntimeException($blocked);
         }
-        $name = trim(preg_replace('/\s+/u', ' ', $name));
-        if (mb_strlen($name) < 2 || mb_strlen($name) > 150) {
-            throw new \RuntimeException('กรุณาพิมพ์ชื่อ–นามสกุลของผู้ลงนาม');
-        }
+        $name = self::checkSignerName($name);
         if (!$acceptTerms) {
             throw new \RuntimeException('กรุณาติ๊กยืนยันว่าได้อ่านและยอมรับเงื่อนไขแล้ว');
         }
         if (!$consent) {
             throw new \RuntimeException('กรุณาติ๊กยินยอมการใช้ข้อมูลส่วนบุคคลก่อนลงนาม');
         }
-        $png = self::toPng($dataUrl);
+        $png      = self::toPng($dataUrl);
+        $snapshot = self::buildSnapshot($b, $car, $kind, $name, $termsText);
 
+        $id = self::insertSignature($b, $kind, $name, $png, $snapshot);
+        ActivityLog::log('signature_signed', 'bookings', (int) $b['id'], ['kind' => $kind, 'signature_id' => $id, 'name' => $name]);
+        return $id;
+    }
+
+    /** ตัดช่องว่างซ้ำและตรวจความยาวชื่อผู้ลงนาม */
+    private static function checkSignerName(string $name): string
+    {
+        $name = trim(preg_replace('/\s+/u', ' ', $name));
+        if (mb_strlen($name) < 2 || mb_strlen($name) > 150) {
+            throw new \RuntimeException('กรุณาพิมพ์ชื่อ–นามสกุลของผู้ลงนาม');
+        }
+        return $name;
+    }
+
+    /** สำเนาข้อมูล ณ เวลาที่เซ็น (JSON) */
+    private static function buildSnapshot(array $b, array $car, string $kind, string $name, string $termsText): string
+    {
         $fields = [];
-        foreach (self::fields($b, $car, $kind) as $k => [, $v]) {
-            $fields[$k] = $v;
+        foreach (self::fields($b, $car, $kind) as $key => [, $value]) {
+            $fields[$key] = $value;
         }
         $ins = Inspection::get((int) $b['id'], $kind === 'return' ? 'in' : 'out');
-        $snapshot = json_encode([
+
+        $inspection = null;
+        if ($ins) {
+            $inspection = [
+                'photos'    => count($ins['photos']),
+                'locked_at' => $ins['locked_at'],
+                'files'     => array_column($ins['photos'], 'file_path'),
+            ];
+        }
+        return json_encode([
             'booking_no' => $b['booking_no'],
             'kind'       => $kind,
             'fields'     => $fields,
             'extras'     => $kind === 'return' ? Booking::extraLines($b) : [],
-            'inspection' => $ins ? ['photos' => count($ins['photos']), 'locked_at' => $ins['locked_at'],
-                                    'files' => array_column($ins['photos'], 'file_path')] : null,
+            'inspection' => $inspection,
             'pdpa_text'  => (string) setting('pdpa_policy_text'),
             'terms'      => $termsText,
             'signed_by'  => $name,
         ], JSON_UNESCAPED_UNICODE);
+    }
 
+    /** เขียนไฟล์ลายเซ็นและแถวในฐานข้อมูลใน transaction เดียว */
+    private static function insertSignature(array $b, string $kind, string $name, string $png, string $snapshot): int
+    {
         $req = Request::current();
         Database::begin();
         try {
@@ -265,11 +377,10 @@ final class SignatureService
             if (Signature::active((int) $b['id'], $kind)) {
                 throw new \RuntimeException('เอกสารนี้ลงนามเรียบร้อยแล้ว');
             }
-            $path = PrivateFileService::put('signatures', $png, 'png');
             $id = Signature::insert([
                 'booking_id'    => (int) $b['id'],
                 'kind'          => $kind,
-                'file_path'     => $path,
+                'file_path'     => PrivateFileService::put('signatures', $png, 'png'),
                 'signer_name'   => $name,
                 'consent_pdpa'  => 1,
                 'snapshot'      => $snapshot,
@@ -279,11 +390,10 @@ final class SignatureService
                 'signed_at'     => date('Y-m-d H:i:s'),
             ]);
             Database::commit();
+            return $id;
         } catch (\Throwable $e) {
             Database::rollBack();
             throw $e;
         }
-        ActivityLog::log('signature_signed', 'bookings', (int) $b['id'], ['kind' => $kind, 'signature_id' => $id, 'name' => $name]);
-        return $id;
     }
 }

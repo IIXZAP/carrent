@@ -18,24 +18,35 @@ final class NotificationService
         return Notification::queue($channel, $recipient, $message, $subject, $refTable, $refId, $tplKey);
     }
 
-    /** ส่งอีเมลผ่าน SMTP (ไม่ต้องลง PHPMailer — ใช้ socket ตรง) */
+    /** ส่งอีเมลผ่าน SMTP (ไม่ต้องลง PHPMailer — ใช้ socket ตรง) @return array{0:bool,1:?string} */
     public static function smtpSend(string $to, string $subject, string $htmlBody): array
     {
-        $host     = setting('smtp_host');
-        $port     = (int) setting('smtp_port', '587');
-        $user     = setting('smtp_user');
-        $pass     = setting('smtp_pass');
-        $secure   = setting('smtp_secure', 'tls');
-        $fromName = setting('smtp_from_name', 'thonglorcarrent');
-
         // ไม่ได้ตั้งค่า SMTP → ใช้ mail() ของ cPanel
-        if (!$host) {
-            $headers  = "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            $headers .= 'From: ' . mb_encode_mimeheader($fromName) . ' <' . setting('email', 'no-reply@localhost') . ">\r\n";
-            $ok = @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $htmlBody, $headers);
-            return [$ok, $ok ? null : 'mail() ส่งไม่สำเร็จ'];
+        if (!setting('smtp_host')) {
+            return self::sendWithMail($to, $subject, $htmlBody);
         }
+        return self::sendWithSmtp($to, $subject, $htmlBody);
+    }
+
+    /** ส่งด้วยฟังก์ชัน mail() ของ PHP */
+    private static function sendWithMail(string $to, string $subject, string $htmlBody): array
+    {
+        $fromName = setting('smtp_from_name', 'thonglorcarrent');
+        $headers  = "MIME-Version: 1.0\r\n";
+        $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+        $headers .= 'From: ' . mb_encode_mimeheader($fromName) . ' <' . setting('email', 'no-reply@localhost') . ">\r\n";
+        $ok = @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $htmlBody, $headers);
+        return [$ok, $ok ? null : 'mail() ส่งไม่สำเร็จ'];
+    }
+
+    /** ส่งด้วย SMTP: เชื่อมต่อ → (TLS) → ล็อกอิน → ระบุผู้รับ → ส่งเนื้อหา */
+    private static function sendWithSmtp(string $to, string $subject, string $htmlBody): array
+    {
+        $host   = setting('smtp_host');
+        $port   = (int) setting('smtp_port', '587');
+        $user   = setting('smtp_user');
+        $pass   = setting('smtp_pass');
+        $secure = setting('smtp_secure', 'tls');
 
         $transport = ($secure === 'ssl') ? 'ssl://' : '';
         $fp = @stream_socket_client($transport . $host . ':' . $port, $errno, $errstr, 20);
@@ -44,63 +55,78 @@ final class NotificationService
         }
         stream_set_timeout($fp, 20);
 
-        $read = function () use ($fp) {
-            $data = '';
-            while ($line = fgets($fp, 515)) {
-                $data .= $line;
-                if (isset($line[3]) && $line[3] === ' ') {
-                    break;
-                }
-            }
-            return $data;
-        };
-        $cmd = function (string $c) use ($fp, $read) {
-            fwrite($fp, $c . "\r\n");
-            return $read();
-        };
+        self::smtpRead($fp);   // ข้อความต้อนรับจากเซิร์ฟเวอร์
+        $hello = 'EHLO ' . ($_SERVER['SERVER_NAME'] ?? 'localhost');
+        self::smtpCommand($fp, $hello);
 
-        $read();
-        $cmd('EHLO ' . ($_SERVER['SERVER_NAME'] ?? 'localhost'));
         if ($secure === 'tls') {
-            $cmd('STARTTLS');
+            self::smtpCommand($fp, 'STARTTLS');
             if (!stream_socket_enable_crypto($fp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
                 fclose($fp);
                 return [false, 'เปิด TLS ไม่สำเร็จ'];
             }
-            $cmd('EHLO ' . ($_SERVER['SERVER_NAME'] ?? 'localhost'));
+            self::smtpCommand($fp, $hello);
         }
+
         if ($user) {
-            $cmd('AUTH LOGIN');
-            $cmd(base64_encode($user));
-            $r = $cmd(base64_encode($pass));
-            if (!str_starts_with(trim($r), '235')) {
+            self::smtpCommand($fp, 'AUTH LOGIN');
+            self::smtpCommand($fp, base64_encode($user));
+            $reply = self::smtpCommand($fp, base64_encode($pass));
+            if (!str_starts_with(trim($reply), '235')) {
                 fclose($fp);
                 return [false, 'SMTP ยืนยันตัวตนไม่ผ่าน'];
             }
         }
-        $from = $user ?: setting('email', 'no-reply@localhost');
-        $cmd('MAIL FROM: <' . $from . '>');
-        $r = $cmd('RCPT TO: <' . $to . '>');
-        if (!preg_match('/^25\d/', trim($r))) {
-            fclose($fp);
-            return [false, 'ปลายทางไม่ถูกต้อง: ' . trim($r)];
-        }
-        $cmd('DATA');
 
+        $from = $user ?: setting('email', 'no-reply@localhost');
+        self::smtpCommand($fp, 'MAIL FROM: <' . $from . '>');
+        $reply = self::smtpCommand($fp, 'RCPT TO: <' . $to . '>');
+        if (!preg_match('/^25\d/', trim($reply))) {
+            fclose($fp);
+            return [false, 'ปลายทางไม่ถูกต้อง: ' . trim($reply)];
+        }
+        self::smtpCommand($fp, 'DATA');
+
+        fwrite($fp, self::mailContent($from, $to, $subject, $htmlBody) . "\r\n.\r\n");
+        $reply = trim(self::smtpRead($fp));
+        self::smtpCommand($fp, 'QUIT');
+        fclose($fp);
+
+        $ok = str_starts_with($reply, '250');
+        return [$ok, $ok ? null : $reply];
+    }
+
+    /** อ่านคำตอบของเซิร์ฟเวอร์ SMTP (คำตอบหลายบรรทัดจบที่บรรทัดที่ตัวอักษรที่ 4 เป็นช่องว่าง) */
+    private static function smtpRead($fp): string
+    {
+        $data = '';
+        while ($line = fgets($fp, 515)) {
+            $data .= $line;
+            if (isset($line[3]) && $line[3] === ' ') {
+                break;
+            }
+        }
+        return $data;
+    }
+
+    /** ส่งคำสั่งหนึ่งบรรทัดแล้วรอคำตอบ */
+    private static function smtpCommand($fp, string $command): string
+    {
+        fwrite($fp, $command . "\r\n");
+        return self::smtpRead($fp);
+    }
+
+    /** หัวจดหมาย + เนื้อหา (เข้ารหัส base64) */
+    private static function mailContent(string $from, string $to, string $subject, string $htmlBody): string
+    {
+        $fromName = setting('smtp_from_name', 'thonglorcarrent');
         $headers  = 'From: ' . mb_encode_mimeheader($fromName) . " <$from>\r\n";
         $headers .= "To: <$to>\r\n";
         $headers .= 'Subject: =?UTF-8?B?' . base64_encode($subject) . "?=\r\n";
         $headers .= "MIME-Version: 1.0\r\n";
         $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
         $headers .= "Content-Transfer-Encoding: base64\r\n\r\n";
-        $body = chunk_split(base64_encode($htmlBody));
-
-        fwrite($fp, $headers . $body . "\r\n.\r\n");
-        $r = $read();
-        $cmd('QUIT');
-        fclose($fp);
-
-        return [str_starts_with(trim($r), '250'), str_starts_with(trim($r), '250') ? null : trim($r)];
+        return $headers . chunk_split(base64_encode($htmlBody));
     }
 
     /** ประมวลผลคิวแจ้งเตือน (เรียกจาก cron หรือหลังบันทึกข้อมูล) คืนจำนวนที่ส่งสำเร็จ */
@@ -112,29 +138,33 @@ final class NotificationService
             if (!Notification::claim((int) $n['id'])) {
                 continue;
             }
-            $ok  = false;
-            $err = 'ปิดการใช้งานช่องทางนี้';
-            if ($n['channel'] === 'line' && setting('notify_line_enabled') === '1') {
-                $to = $n['recipient'] ?: setting('line_admin_user_id');
-                if ($to) {
-                    [$ok, $err] = LineService::pushTo($to, $n['message']);
-                } else {
-                    $err = 'ไม่มี LINE user id ปลายทาง';
-                }
-            } elseif ($n['channel'] === 'email' && setting('notify_email_enabled') === '1') {
-                $to = $n['recipient'] ?: setting('notify_admin_email');
-                if ($to) {
-                    [$ok, $err] = self::smtpSend($to, $n['subject'] ?: 'thonglorcarrent', nl2br(e($n['message'])));
-                } else {
-                    $err = 'ไม่มีอีเมลปลายทาง';
-                }
-            }
+            [$ok, $err] = self::deliver($n);
             Notification::markResult((int) $n['id'], (bool) $ok, $err);
             if ($ok) {
                 $sent++;
             }
         }
         return $sent;
+    }
+
+    /** ส่งแจ้งเตือน 1 รายการตามช่องทาง @return array{0:bool,1:?string} */
+    private static function deliver(array $n): array
+    {
+        if ($n['channel'] === 'line' && setting('notify_line_enabled') === '1') {
+            $to = $n['recipient'] ?: setting('line_admin_user_id');
+            if (!$to) {
+                return [false, 'ไม่มี LINE user id ปลายทาง'];
+            }
+            return LineService::pushTo($to, $n['message']);
+        }
+        if ($n['channel'] === 'email' && setting('notify_email_enabled') === '1') {
+            $to = $n['recipient'] ?: setting('notify_admin_email');
+            if (!$to) {
+                return [false, 'ไม่มีอีเมลปลายทาง'];
+            }
+            return self::smtpSend($to, $n['subject'] ?: 'thonglorcarrent', nl2br(e($n['message'])));
+        }
+        return [false, 'ปิดการใช้งานช่องทางนี้'];
     }
 
     // ------------------------------------------------------------
@@ -194,9 +224,19 @@ final class NotificationService
      */
     public static function bookingReturned(array $b, array $car, array $lines): void
     {
-        $charged = array_values(array_filter($lines, fn($l) => empty($l['waived']) && (float) $l['amount'] > 0));
-        $waived  = array_values(array_filter($lines, fn($l) => !empty($l['waived'])));
-        $extra   = round(array_sum(array_map(fn($l) => (float) $l['amount'], $charged)), 2);
+        // แยกรายการที่เก็บเงินจริง กับรายการที่พนักงานยกเว้น
+        $charged = [];
+        $waived  = [];
+        $extra   = 0.0;
+        foreach ($lines as $line) {
+            if (!empty($line['waived'])) {
+                $waived[] = $line;
+            } elseif ((float) $line['amount'] > 0) {
+                $charged[] = $line;
+                $extra += (float) $line['amount'];
+            }
+        }
+        $extra = round($extra, 2);
 
         if ($charged) {
             $items = 'ค่าใช้จ่ายเพิ่ม ' . money0($extra) . ' บาท';
