@@ -228,52 +228,81 @@ class LiffController extends Controller
         // เฉพาะการจองที่ LINE นี้ยืนยันเลขที่จอง + เบอร์โทรไว้เอง (หรือจองจากในแอป LINE)
         $rows = Booking::forLineUser($uid, 12);
         $out['customer'] = ['name' => (string) ($rows[0]['contact_name'] ?? '')];
-        foreach ($rows as $b) {
-            [$sl, $sc] = booking_status_label($b['status']);
-            [$pl, $pc] = payment_status_label($b['payment_status']);
-            $due  = (float) $b['grand_total'] + (float) $b['extra_charge'];
-            $bal  = max(0, $due - (float) $b['paid_amount']);
-            $open = !in_array($b['status'], ['cancelled', 'completed'], true);
-            // ยอดที่แนะนำให้โอนตอนนี้: ยังไม่จ่ายเลย → มัดจำ, จ่ายมัดจำแล้ว → ส่วนที่เหลือ
-            $suggest = (float) $b['paid_amount'] <= 0 ? min($bal, (float) $b['deposit_amount']) : $bal;
-
-            $pays = [];
-            foreach (Payment::recentForBooking((int) $b['id'], 8) as $p) {
-                $pays[] = [
-                    'amount' => money0($p['amount']),
-                    'status' => $p['status'],
-                    'label'  => ['pending' => 'รอตรวจสอบ', 'approved' => 'ยืนยันแล้ว', 'rejected' => 'ไม่ผ่าน'][$p['status']] ?? $p['status'],
-                    'date'   => thai_date($p['paid_at'], true),
-                    'reason' => (string) ($p['reject_reason'] ?? ''),
-                    'kind'   => $p['kind'],
-                ];
-            }
-            $out['bookings'][] = [
-                'id'           => (int) $b['id'],
-                'no'           => $b['booking_no'],
-                'car'          => trim($b['brand'] . ' ' . $b['model']),
-                'plate'        => $b['plate'],
-                'image'        => upload_exists($b['cover_image']) ? upload_url($b['cover_image']) : '',
-                'pickup'       => thai_date($b['pickup_at'], true),
-                'return'       => thai_date($b['return_at'], true),
-                'pickup_place' => (string) ($b['pickup_place'] ?: 'ที่ร้าน'),
-                'return_place' => (string) ($b['return_place'] ?: ($b['pickup_place'] ?: 'ที่ร้าน')),
-                'days'         => (int) $b['rental_days'],
-                'status'       => $b['status'], 'status_label' => $sl, 'status_tone' => $sc,
-                'pay_label'    => $pl, 'pay_tone' => $pc,
-                'total'        => money0($due),
-                'paid'         => money0($b['paid_amount']),
-                'balance'      => money0($bal),
-                'balance_raw'  => $bal,
-                'deposit'      => money0($b['deposit_amount']),
-                'security'     => money0($b['security_deposit']),
-                'extras'       => array_map(fn($l) => ['label' => $l['label'], 'amount' => money0($l['amount'])], Booking::extraLines($b, true)),
-                'suggest'      => (int) round($suggest),
-                'can_pay'      => $open && $bal > 0,
-                'open'         => $open,
-                'payments'     => $pays,
-            ];
+        foreach ($rows as $booking) {
+            $out['bookings'][] = $this->bookingForScreen($booking);
         }
         return $out;
+    }
+
+    /** ข้อมูลการจอง 1 รายการในรูปแบบที่หน้าจอใช้ (ตัวเลขเงินเป็นข้อความพร้อมแสดง) */
+    private function bookingForScreen(array $b): array
+    {
+        [$statusLabel, $statusTone] = booking_status_label($b['status']);
+        [$payLabel, $payTone]       = payment_status_label($b['payment_status']);
+
+        $due     = (float) $b['grand_total'] + (float) $b['extra_charge'];
+        $balance = max(0, $due - (float) $b['paid_amount']);
+        $isOpen  = !in_array($b['status'], ['cancelled', 'completed'], true);
+
+        // ยอดที่แนะนำให้โอนตอนนี้: ยังไม่จ่ายเลย → มัดจำ, จ่ายมัดจำแล้ว → ส่วนที่เหลือ
+        $suggest = $balance;
+        if ((float) $b['paid_amount'] <= 0) {
+            $suggest = min($balance, (float) $b['deposit_amount']);
+        }
+
+        return [
+            'id'           => (int) $b['id'],
+            'no'           => $b['booking_no'],
+            'car'          => trim($b['brand'] . ' ' . $b['model']),
+            'plate'        => $b['plate'],
+            'image'        => upload_exists($b['cover_image']) ? upload_url($b['cover_image']) : '',
+            'pickup'       => thai_date($b['pickup_at'], true),
+            'return'       => thai_date($b['return_at'], true),
+            'pickup_place' => (string) ($b['pickup_place'] ?: 'ที่ร้าน'),
+            'return_place' => (string) ($b['return_place'] ?: ($b['pickup_place'] ?: 'ที่ร้าน')),
+            'days'         => (int) $b['rental_days'],
+            'status'       => $b['status'],
+            'status_label' => $statusLabel,
+            'status_tone'  => $statusTone,
+            'pay_label'    => $payLabel,
+            'pay_tone'     => $payTone,
+            'total'        => money0($due),
+            'paid'         => money0($b['paid_amount']),
+            'balance'      => money0($balance),
+            'balance_raw'  => $balance,
+            'deposit'      => money0($b['deposit_amount']),
+            'security'     => money0($b['security_deposit']),
+            'extras'       => $this->extraChargesForScreen($b),
+            'suggest'      => (int) round($suggest),
+            'can_pay'      => $isOpen && $balance > 0,
+            'open'         => $isOpen,
+            'payments'     => $this->paymentsForScreen((int) $b['id']),
+        ];
+    }
+
+    private function extraChargesForScreen(array $booking): array
+    {
+        $extras = [];
+        foreach (Booking::extraLines($booking, true) as $line) {
+            $extras[] = ['label' => $line['label'], 'amount' => money0($line['amount'])];
+        }
+        return $extras;
+    }
+
+    private function paymentsForScreen(int $bookingId): array
+    {
+        $labels   = ['pending' => 'รอตรวจสอบ', 'approved' => 'ยืนยันแล้ว', 'rejected' => 'ไม่ผ่าน'];
+        $payments = [];
+        foreach (Payment::recentForBooking($bookingId, 8) as $p) {
+            $payments[] = [
+                'amount' => money0($p['amount']),
+                'status' => $p['status'],
+                'label'  => $labels[$p['status']] ?? $p['status'],
+                'date'   => thai_date($p['paid_at'], true),
+                'reason' => (string) ($p['reject_reason'] ?? ''),
+                'kind'   => $p['kind'],
+            ];
+        }
+        return $payments;
     }
 }
