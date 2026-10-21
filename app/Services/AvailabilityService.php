@@ -25,9 +25,12 @@ final class AvailabilityService
     private static function paddedRange(string $pickup, string $return): array
     {
         $gap = self::gapHours();
+        if ($gap === 0) {
+            return [$pickup, $return];
+        }
         return [
-            $gap > 0 ? date('Y-m-d H:i:s', strtotime($pickup) - $gap * 3600) : $pickup,
-            $gap > 0 ? date('Y-m-d H:i:s', strtotime($return) + $gap * 3600) : $return,
+            date('Y-m-d H:i:s', strtotime($pickup) - $gap * 3600),
+            date('Y-m-d H:i:s', strtotime($return) + $gap * 3600),
         ];
     }
 
@@ -89,15 +92,16 @@ final class AvailabilityService
 
         $cars = Database::all($sql, $p);
         $days = PricingService::rentalDays($pickup, $return);
-        foreach ($cars as &$c) {
-            $q = PricingService::calcRental($c, $days);
-            $c['_days']    = $days;
-            $c['_total']   = $q['total'];
-            $c['_avg_day'] = $q['avg_day'];
-            $c['_lines']   = $q['lines'];
+        $result = [];
+        foreach ($cars as $car) {
+            $quote = PricingService::calcRental($car, $days);
+            $car['_days']    = $days;
+            $car['_total']   = $quote['total'];
+            $car['_avg_day'] = $quote['avg_day'];
+            $car['_lines']   = $quote['lines'];
+            $result[] = $car;
         }
-        unset($c);
-        return $cars;
+        return $result;
     }
 
     /** ช่วงวันที่ถูกจองของรถคันหนึ่ง (ใช้แสดงในหน้ารายละเอียดรถ) */
@@ -167,11 +171,13 @@ final class AvailabilityService
         }
 
         // ช่วงเวลาทำการ — สนามบินกว้างกว่าจุดอื่น
-        if ($msg = self::validateServiceTime($pickup, $pickType, 'รับรถ')) {
-            return $msg;
+        $pickupError = self::validateServiceTime($pickup, $pickType, 'รับรถ');
+        if ($pickupError) {
+            return $pickupError;
         }
-        if ($msg = self::validateServiceTime($return, $retType, 'คืนรถ')) {
-            return $msg;
+        $returnError = self::validateServiceTime($return, $retType, 'คืนรถ');
+        if ($returnError) {
+            return $returnError;
         }
 
         $leadHours = (int) setting('booking_lead_hours', '3');

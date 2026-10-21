@@ -25,168 +25,211 @@ final class CronService
     /** @return string[] บรรทัดสรุปผลการทำงาน */
     public static function run(): array
     {
-        $today     = date('Y-m-d');
-        $lines     = [];
-        $adminLine = setting('line_admin_user_id');
-        $adminMail = setting('notify_admin_email');
+        $today = date('Y-m-d');
+        $lines = [];
 
-        // ------------------------------------------------------------
-        // 1) งานประจำรถใกล้ครบกำหนด
-        // ------------------------------------------------------------
-        $warnDays = (int) setting('reminder_days_before', '30');
-        $tasks = Maintenance::needingReminder(date('Y-m-d', strtotime("+$warnDays days")), $today);
-        if ($tasks) {
-            $msg = "🔧 งานประจำรถที่ต้องจัดการ\n";
-            foreach ($tasks as $t) {
-                $left = (int) floor((strtotime($t['due_date']) - strtotime($today)) / 86400);
-                $msg .= sprintf("• %s (%s) — %s %s\n", $t['title'], $t['plate'],
-                    $left < 0 ? 'เลยกำหนด ' . abs($left) . ' วัน' : 'อีก ' . $left . ' วัน',
-                    thai_date($t['due_date']));
-                Maintenance::markNotified((int) $t['id']);
-            }
-            NotificationService::queue('line', $adminLine, $msg, null, 'maintenances', null);
-            NotificationService::queue('email', $adminMail, $msg, 'งานประจำรถที่ต้องจัดการ');
-            $lines[] = 'maintenance reminders: ' . count($tasks);
-        }
+        self::remindMaintenance($today, $lines);
+        self::sendTodayJobs($today, $lines);
+        self::cancelUnpaidBookings($lines);
+        self::warnStalePending($lines);
+        self::warnOverdue($lines);
 
-        // ------------------------------------------------------------
-        // 2) งานวันนี้
-        // ------------------------------------------------------------
-        $pickups = Booking::pickupsOn($today);
-        $returns = Booking::returnsOn($today);
-        if ($pickups || $returns) {
-            $msg = '📅 งานวันนี้ ' . thai_date($today, false, true) . "\n";
-            if ($pickups) {
-                $msg .= "\n🚗 ส่งมอบรถ (" . count($pickups) . ")\n";
-                foreach ($pickups as $p) {
-                    $msg .= sprintf("• %s น. %s (%s) — %s %s\n", date('H:i', strtotime($p['pickup_at'])),
-                        $p['brand'] . ' ' . $p['model'], $p['plate'], $p['contact_name'], $p['contact_phone']);
-                }
-            }
-            if ($returns) {
-                $msg .= "\n🔙 รับคืนรถ (" . count($returns) . ")\n";
-                foreach ($returns as $r) {
-                    $msg .= sprintf("• %s น. %s (%s) — %s %s\n", date('H:i', strtotime($r['return_at'])),
-                        $r['brand'] . ' ' . $r['model'], $r['plate'], $r['contact_name'], $r['contact_phone']);
-                }
-            }
-            NotificationService::queue('line', $adminLine, $msg, null, 'bookings', null);
-            NotificationService::queue('email', $adminMail, $msg, 'งานวันนี้ ' . thai_date($today));
-            $lines[] = 'today jobs: ' . (count($pickups) + count($returns));
-        }
-
-        // ------------------------------------------------------------
-        // 2.5) ยกเลิกการจองที่ไม่จ่ายมัดจำตามเวลาที่ตั้งไว้ (ปิดไว้เป็นค่าตั้งต้น — เปิดที่ หลังบ้าน → ตั้งค่า)
-        //      การจองที่ยังไม่จ่ายก็กันรถไว้ไม่ให้คนอื่นจอง ถ้าไม่มีใครมายกเลิก รถคันนั้นจะขายไม่ได้ในช่วงนั้น
-        //      ยกเลิกเฉพาะรายการที่: ยังรอยืนยัน · ยังไม่มีเงินเข้าเลย · ไม่มีสลิปรอตรวจ · จองผ่านหน้าเว็บ
-        // ------------------------------------------------------------
-        $expH = (int) setting('pending_expire_hours', '0');
-        if ($expH > 0) {
-            $gone = Booking::unpaidExpired(date('Y-m-d H:i:s', time() - $expH * 3600));
-            foreach ($gone as $g) {
-                Booking::cancelPending((int) $g['id'], 'ระบบยกเลิกอัตโนมัติ: ไม่ชำระมัดจำภายใน ' . $expH . ' ชั่วโมง');
-                ActivityLog::log('booking_auto_cancelled', 'bookings', (int) $g['id'], $g['booking_no']);
-            }
-            if ($gone) {
-                NotificationService::queue('line', $adminLine, "🗑️ ระบบยกเลิกการจองที่ไม่ชำระมัดจำภายใน {$expH} ชม. (" . count($gone) . " รายการ)\n"
-                    . implode("\n", array_map(fn($g) => '• ' . $g['booking_no'], array_slice($gone, 0, 15))));
-                $lines[] = 'auto-cancelled unpaid: ' . count($gone);
-            }
-        }
-
-        // ------------------------------------------------------------
-        // 3) จองค้างยืนยันเกิน 24 ชม.
-        // ------------------------------------------------------------
-        $stale = Booking::stalePending();
-        if ($stale) {
-            $msg = '⏳ การจองค้างยืนยันเกิน 24 ชั่วโมง (' . count($stale) . " รายการ)\n";
-            foreach ($stale as $s) {
-                $msg .= sprintf("• %s %s (%s) รับรถ %s\n", $s['booking_no'], $s['contact_name'],
-                    $s['contact_phone'], thai_date($s['pickup_at'], true));
-            }
-            NotificationService::queue('line', $adminLine, $msg);
-            $lines[] = 'stale pending: ' . count($stale);
-        }
-
-        // ------------------------------------------------------------
-        // 4) รถเลยกำหนดคืน
-        // ------------------------------------------------------------
-        $overdue = Booking::overdue();
-        if ($overdue) {
-            $msg = '⚠️ รถเลยกำหนดคืน (' . count($overdue) . " คัน)\n";
-            foreach ($overdue as $o) {
-                $hours = (int) floor((time() - strtotime($o['return_at'])) / 3600);
-                $msg .= sprintf("• %s (%s) %s %s — เลยมา %d ชม. (ค่าปรับประมาณ %s บาท)\n",
-                    $o['booking_no'], $o['plate'], $o['contact_name'], $o['contact_phone'], $hours,
-                    money0(LateReturnService::calculate($o, ['price_day' => $o['price_day']], date('Y-m-d H:i:s'), null, null)['total']));
-            }
-            NotificationService::queue('line', $adminLine, $msg);
-            NotificationService::queue('email', $adminMail, $msg, 'รถเลยกำหนดคืน');
-            $lines[] = 'overdue: ' . count($overdue);
-        }
-
-        // ------------------------------------------------------------
-        // 4.5) ลองส่งข้อความที่ค้างส่งไม่สำเร็จอีกรอบ — ต้องทำก่อนขั้นเตือนลูกค้า
-        //      (ถ้าทำทีหลัง ข้อความเตือนที่เคยส่งไม่ผ่านจะถูกสร้างใหม่ในขั้นที่ 5 แล้วถูกปลุกซ้ำอีกรอบ = ลูกค้าได้สองข้อความ)
-        // ------------------------------------------------------------
+        // ลองส่งข้อความที่ค้างส่งไม่สำเร็จอีกรอบ — ต้องทำก่อนขั้นเตือนลูกค้า
+        // (ถ้าทำทีหลัง ข้อความเตือนที่เคยส่งไม่ผ่านจะถูกสร้างใหม่แล้วถูกปลุกซ้ำ = ลูกค้าได้สองข้อความ)
         $retry = Notification::retryRecentFailures(date('Y-m-d H:i:s', time() - 20 * 3600));
         if ($retry) {
             $lines[] = 'retry failed notifications: ' . $retry;
         }
 
-        // ------------------------------------------------------------
-        // 5) เตือนลูกค้าทาง LINE — เฉพาะคนที่ผูกบัญชีไว้ และส่งครั้งเดียวต่อการจอง
-        //    ช่วงที่จับ = วันนี้ถึงพรุ่งนี้ เพื่อให้การเช่า 1 วันที่จองกระชั้นชิดยังได้ข้อความ
-        // ------------------------------------------------------------
+        self::remindCustomers($today, $lines);
+        self::backupDatabase($lines);
+        self::flushAndClean($lines);
+
+        ActivityLog::log('cron_daily', null, null, implode(' | ', $lines));
+        return $lines;
+    }
+
+    /** 1) งานประจำรถใกล้ครบกำหนด (ประกัน / พ.ร.บ. / ภาษี / เช็กระยะ) */
+    private static function remindMaintenance(string $today, array &$lines): void
+    {
+        $warnDays = (int) setting('reminder_days_before', '30');
+        $tasks = Maintenance::needingReminder(date('Y-m-d', strtotime("+$warnDays days")), $today);
+        if (!$tasks) {
+            return;
+        }
+        $msg = "🔧 งานประจำรถที่ต้องจัดการ\n";
+        foreach ($tasks as $task) {
+            $left = (int) floor((strtotime($task['due_date']) - strtotime($today)) / 86400);
+            if ($left < 0) {
+                $when = 'เลยกำหนด ' . abs($left) . ' วัน';
+            } else {
+                $when = 'อีก ' . $left . ' วัน';
+            }
+            $msg .= sprintf("• %s (%s) — %s %s\n", $task['title'], $task['plate'], $when, thai_date($task['due_date']));
+            Maintenance::markNotified((int) $task['id']);
+        }
+        NotificationService::queue('line', setting('line_admin_user_id'), $msg, null, 'maintenances', null);
+        NotificationService::queue('email', setting('notify_admin_email'), $msg, 'งานประจำรถที่ต้องจัดการ');
+        $lines[] = 'maintenance reminders: ' . count($tasks);
+    }
+
+    /** 2) สรุปงานส่งมอบ–รับคืนรถของวันนี้ ส่งให้เจ้าของร้าน */
+    private static function sendTodayJobs(string $today, array &$lines): void
+    {
+        $pickups = Booking::pickupsOn($today);
+        $returns = Booking::returnsOn($today);
+        if (!$pickups && !$returns) {
+            return;
+        }
+        $msg = '📅 งานวันนี้ ' . thai_date($today, false, true) . "\n";
+        if ($pickups) {
+            $msg .= "\n🚗 ส่งมอบรถ (" . count($pickups) . ")\n" . self::jobLines($pickups, 'pickup_at');
+        }
+        if ($returns) {
+            $msg .= "\n🔙 รับคืนรถ (" . count($returns) . ")\n" . self::jobLines($returns, 'return_at');
+        }
+        NotificationService::queue('line', setting('line_admin_user_id'), $msg, null, 'bookings', null);
+        NotificationService::queue('email', setting('notify_admin_email'), $msg, 'งานวันนี้ ' . thai_date($today));
+        $lines[] = 'today jobs: ' . (count($pickups) + count($returns));
+    }
+
+    /** บรรทัดรายการงาน เช่น "• 10:00 น. Toyota Yaris (1กก1234) — สมชาย 0812345678" */
+    private static function jobLines(array $bookings, string $timeColumn): string
+    {
+        $text = '';
+        foreach ($bookings as $b) {
+            $text .= sprintf("• %s น. %s (%s) — %s %s\n", date('H:i', strtotime($b[$timeColumn])),
+                $b['brand'] . ' ' . $b['model'], $b['plate'], $b['contact_name'], $b['contact_phone']);
+        }
+        return $text;
+    }
+
+    /**
+     * 2.5) ยกเลิกการจองที่ไม่จ่ายมัดจำตามเวลาที่ตั้งไว้ (ปิดไว้เป็นค่าตั้งต้น — เปิดที่ หลังบ้าน → ตั้งค่า)
+     * การจองที่ยังไม่จ่ายก็กันรถไว้ไม่ให้คนอื่นจอง ถ้าไม่มีใครมายกเลิก รถคันนั้นจะขายไม่ได้ในช่วงนั้น
+     * ยกเลิกเฉพาะรายการที่: ยังรอยืนยัน · ยังไม่มีเงินเข้าเลย · ไม่มีสลิปรอตรวจ · จองผ่านหน้าเว็บ
+     */
+    private static function cancelUnpaidBookings(array &$lines): void
+    {
+        $hours = (int) setting('pending_expire_hours', '0');
+        if ($hours <= 0) {
+            return;
+        }
+        $expired = Booking::unpaidExpired(date('Y-m-d H:i:s', time() - $hours * 3600));
+        if (!$expired) {
+            return;
+        }
+        $numbers = [];
+        foreach ($expired as $b) {
+            Booking::cancelPending((int) $b['id'], 'ระบบยกเลิกอัตโนมัติ: ไม่ชำระมัดจำภายใน ' . $hours . ' ชั่วโมง');
+            ActivityLog::log('booking_auto_cancelled', 'bookings', (int) $b['id'], $b['booking_no']);
+            $numbers[] = '• ' . $b['booking_no'];
+        }
+        $msg = "🗑️ ระบบยกเลิกการจองที่ไม่ชำระมัดจำภายใน {$hours} ชม. (" . count($expired) . " รายการ)\n"
+             . implode("\n", array_slice($numbers, 0, 15));
+        NotificationService::queue('line', setting('line_admin_user_id'), $msg);
+        $lines[] = 'auto-cancelled unpaid: ' . count($expired);
+    }
+
+    /** 3) จองค้างยืนยันเกิน 24 ชม. */
+    private static function warnStalePending(array &$lines): void
+    {
+        $stale = Booking::stalePending();
+        if (!$stale) {
+            return;
+        }
+        $msg = '⏳ การจองค้างยืนยันเกิน 24 ชั่วโมง (' . count($stale) . " รายการ)\n";
+        foreach ($stale as $b) {
+            $msg .= sprintf("• %s %s (%s) รับรถ %s\n", $b['booking_no'], $b['contact_name'],
+                $b['contact_phone'], thai_date($b['pickup_at'], true));
+        }
+        NotificationService::queue('line', setting('line_admin_user_id'), $msg);
+        $lines[] = 'stale pending: ' . count($stale);
+    }
+
+    /** 4) รถเลยกำหนดคืน พร้อมค่าปรับโดยประมาณ */
+    private static function warnOverdue(array &$lines): void
+    {
+        $overdue = Booking::overdue();
+        if (!$overdue) {
+            return;
+        }
+        $msg = '⚠️ รถเลยกำหนดคืน (' . count($overdue) . " คัน)\n";
+        foreach ($overdue as $b) {
+            $hours = (int) floor((time() - strtotime($b['return_at'])) / 3600);
+            $late  = LateReturnService::calculate($b, ['price_day' => $b['price_day']], date('Y-m-d H:i:s'), null, null);
+            $msg .= sprintf("• %s (%s) %s %s — เลยมา %d ชม. (ค่าปรับประมาณ %s บาท)\n",
+                $b['booking_no'], $b['plate'], $b['contact_name'], $b['contact_phone'], $hours, money0($late['total']));
+        }
+        NotificationService::queue('line', setting('line_admin_user_id'), $msg);
+        NotificationService::queue('email', setting('notify_admin_email'), $msg, 'รถเลยกำหนดคืน');
+        $lines[] = 'overdue: ' . count($overdue);
+    }
+
+    /**
+     * 5) เตือนลูกค้าทาง LINE — เฉพาะคนที่ผูกบัญชีไว้ และส่งครั้งเดียวต่อการจอง
+     * ช่วงที่จับ = วันนี้ถึงพรุ่งนี้ เพื่อให้การเช่า 1 วันที่จองกระชั้นชิดยังได้ข้อความ
+     */
+    private static function remindCustomers(string $today, array &$lines): void
+    {
         $tomorrow = date('Y-m-d', strtotime('+1 day'));
-        $remind   = 0;
-        foreach (Booking::confirmedPickupBetween($today, $tomorrow) as $bk) {
-            if (LineService::notifyCustomer('pickup_reminder', $bk, null, [], true)) {
-                $remind++;
+        $count    = 0;
+        foreach (Booking::confirmedPickupBetween($today, $tomorrow) as $b) {
+            if (LineService::notifyCustomer('pickup_reminder', $b, null, [], true)) {
+                $count++;
             }
         }
-        foreach (Booking::pickedUpReturnBetween($today, $tomorrow) as $bk) {
-            if (LineService::notifyCustomer('return_reminder', $bk, null, [], true)) {
-                $remind++;
+        foreach (Booking::pickedUpReturnBetween($today, $tomorrow) as $b) {
+            if (LineService::notifyCustomer('return_reminder', $b, null, [], true)) {
+                $count++;
             }
         }
-        if ($remind) {
-            $lines[] = 'customer reminders: ' . $remind;
+        if ($count) {
+            $lines[] = 'customer reminders: ' . $count;
         }
+    }
 
-        // ------------------------------------------------------------
-        // 6) สำรองฐานข้อมูล — วันละครั้ง (ถ้า cron ถูกเรียกถี่กว่านั้นจะข้าม ไม่สำรองซ้ำ)
-        // ------------------------------------------------------------
+    /** 6) สำรองฐานข้อมูล — วันละครั้ง (ถ้า cron ถูกเรียกถี่กว่านั้นจะข้าม ไม่สำรองซ้ำ) */
+    private static function backupDatabase(array &$lines): void
+    {
         try {
-            $lastBk = (string) setting('backup_last_at');
-            if ($lastBk === '' || time() - strtotime($lastBk) > 20 * 3600) {
-                $bk      = BackupService::create();
-                $pruned  = BackupService::prune();
-                $lines[] = 'backup: ' . human_bytes($bk['size']) . ', ' . $bk['rows'] . ' rows' . ($pruned ? ", pruned $pruned" : '');
-
-                // เดือนละครั้ง: บอกเจ้าของร้านให้ดาวน์โหลดสำเนาไปเก็บนอกเซิร์ฟเวอร์
-                // (ไม่แนบไฟล์ไปกับอีเมล เพราะในฐานข้อมูลมีข้อมูลส่วนบุคคลของลูกค้า)
-                $ym = date('Y-m');
-                if ((string) setting('backup_notice_month') !== $ym) {
-                    $msg = '🗄️ สำเนาฐานข้อมูลประจำเดือน ' . thai_date(date('Y-m-d')) . " พร้อมแล้ว\n"
-                         . 'ขนาด ' . human_bytes($bk['size']) . ' · ' . number_format($bk['rows']) . " แถว\n"
-                         . "เข้าสู่ระบบแล้วดาวน์โหลดไปเก็บไว้นอกเซิร์ฟเวอร์ได้ที่\n" . site_url('admin/backups');
-                    NotificationService::queue('line', $adminLine, $msg);
-                    NotificationService::queue('email', $adminMail, $msg, 'สำเนาฐานข้อมูลประจำเดือน');
-                    set_setting('backup_notice_month', $ym);
-                }
+            $last = (string) setting('backup_last_at');
+            if ($last !== '' && time() - strtotime($last) <= 20 * 3600) {
+                return;
             }
+            $backup = BackupService::create();
+            $pruned = BackupService::prune();
+            $lines[] = 'backup: ' . human_bytes($backup['size']) . ', ' . $backup['rows'] . ' rows' . ($pruned ? ", pruned $pruned" : '');
+            self::noticeMonthlyBackup($backup);
         } catch (\Throwable $e) {
             $lines[] = 'backup FAILED: ' . $e->getMessage();
-            NotificationService::queue('line', $adminLine, "⚠️ สำรองฐานข้อมูลอัตโนมัติไม่สำเร็จ\n" . $e->getMessage());
-            NotificationService::queue('email', $adminMail, "สำรองฐานข้อมูลอัตโนมัติไม่สำเร็จ\n" . $e->getMessage(), 'สำรองข้อมูลไม่สำเร็จ');
+            NotificationService::queue('line', setting('line_admin_user_id'), "⚠️ สำรองฐานข้อมูลอัตโนมัติไม่สำเร็จ\n" . $e->getMessage());
+            NotificationService::queue('email', setting('notify_admin_email'), "สำรองฐานข้อมูลอัตโนมัติไม่สำเร็จ\n" . $e->getMessage(), 'สำรองข้อมูลไม่สำเร็จ');
         }
+    }
 
-        // ------------------------------------------------------------
-        // 7) ส่งคิวที่ค้าง + เก็บกวาด
-        // ------------------------------------------------------------
-        $sent = NotificationService::flush(50);
-        $lines[] = 'notifications sent: ' . $sent;
+    /**
+     * เดือนละครั้ง: บอกเจ้าของร้านให้ดาวน์โหลดสำเนาไปเก็บนอกเซิร์ฟเวอร์
+     * (ไม่แนบไฟล์ไปกับอีเมล เพราะในฐานข้อมูลมีข้อมูลส่วนบุคคลของลูกค้า)
+     */
+    private static function noticeMonthlyBackup(array $backup): void
+    {
+        $month = date('Y-m');
+        if ((string) setting('backup_notice_month') === $month) {
+            return;
+        }
+        $msg = '🗄️ สำเนาฐานข้อมูลประจำเดือน ' . thai_date(date('Y-m-d')) . " พร้อมแล้ว\n"
+             . 'ขนาด ' . human_bytes($backup['size']) . ' · ' . number_format($backup['rows']) . " แถว\n"
+             . "เข้าสู่ระบบแล้วดาวน์โหลดไปเก็บไว้นอกเซิร์ฟเวอร์ได้ที่\n" . site_url('admin/backups');
+        NotificationService::queue('line', setting('line_admin_user_id'), $msg);
+        NotificationService::queue('email', setting('notify_admin_email'), $msg, 'สำเนาฐานข้อมูลประจำเดือน');
+        set_setting('backup_notice_month', $month);
+    }
+
+    /** 7) ส่งคิวที่ค้าง + เก็บกวาด */
+    private static function flushAndClean(array &$lines): void
+    {
+        $lines[] = 'notifications sent: ' . NotificationService::flush(50);
 
         try {
             LineEvent::purgeOld();
@@ -194,8 +237,5 @@ final class CronService
             // ยังไม่ได้อัปเดตฐานข้อมูลเป็นเวอร์ชัน 4 — ข้ามไป ไม่ให้งานรายวันล้ม
         }
         set_setting('cron_last_at', date('Y-m-d H:i:s'));
-
-        ActivityLog::log('cron_daily', null, null, implode(' | ', $lines));
-        return $lines;
     }
 }
