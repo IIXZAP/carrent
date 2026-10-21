@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Models\Car;
 use App\Services\AbTrackService;
 use App\Services\BookingService;
+use App\Services\WebBookingService;
 
 /** รับข้อมูลการจองจากหน้าเว็บลูกค้า → บันทึก → แจ้งเตือน → ส่งไปหน้ายืนยัน */
 class BookingController extends Controller
@@ -59,7 +60,7 @@ class BookingController extends Controller
             }
         }
 
-        $result = BookingService::createFromWeb($car, $in, $r->ip());
+        $result = WebBookingService::create($car, $in, $r->ip());
 
         if ($result['errors']) {
             foreach ($result['errors'] as $err) {

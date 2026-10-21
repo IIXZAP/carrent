@@ -10,6 +10,8 @@ use App\Models\Document;
 use App\Models\Inspection;
 use App\Models\Payment;
 use App\Models\Signature;
+use App\Services\AdminBookingService;
+use App\Services\BookingActionService;
 use App\Services\BookingService;
 use App\Services\InspectionService;
 use App\Services\PricingService;
@@ -68,7 +70,7 @@ class BookingController extends AdminController
     public function store(): Response
     {
         try {
-            $res = BookingService::saveFromAdmin(null, $this->request);
+            $res = AdminBookingService::save(null, $this->request);
             return $this->done('admin/bookings/' . $res['id'], 'ok', $res['message']);
         } catch (\Throwable $ex) {
             $this->flash('danger', BookingService::publicError($ex, 'บันทึกไม่สำเร็จ กรุณาตรวจข้อมูลแล้วลองใหม่'));
@@ -80,7 +82,7 @@ class BookingController extends AdminController
     {
         $b = $this->find($id);
         try {
-            $res = BookingService::saveFromAdmin($b, $this->request);
+            $res = AdminBookingService::save($b, $this->request);
             return $this->done('admin/bookings/' . $id, 'ok', $res['message']);
         } catch (\Throwable $ex) {
             $this->flash('danger', BookingService::publicError($ex, 'บันทึกไม่สำเร็จ กรุณาตรวจข้อมูลแล้วลองใหม่'));
@@ -185,7 +187,7 @@ class BookingController extends AdminController
         }
         $car = Car::find((int) $b['car_id']) ?: [];
         try {
-            [$tone, $msg] = BookingService::perform($this->request->str('act'), $b, $car, $this->request);
+            [$tone, $msg] = BookingActionService::perform($this->request->str('act'), $b, $car, $this->request);
             $this->flash($tone, $msg);
         } catch (\Throwable $ex) {
             $this->flash('danger', BookingService::publicError($ex, 'บันทึกไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'));
