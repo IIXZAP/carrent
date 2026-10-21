@@ -1,0 +1,309 @@
+/* ============================================================
+   thonglorcarrent — Tailwind CSS (ต้นฉบับ)
+   build เป็น assets/css/app.css ด้วย `npm run build`
+
+   แนวทาง: จัดวางด้วยคลาส utility ของ Tailwind ในไฟล์ view โดยตรง
+   ส่วนที่ซ้ำกันทั้งระบบ (ปุ่ม ช่องกรอก ป้ายสถานะ ตาราง) รวมเป็น component ด้านล่างด้วย @apply
+   ============================================================ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ------------------------------------------------------------
+   BASE — ค่าตั้งต้นของแท็ก HTML
+   ------------------------------------------------------------ */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply overflow-x-hidden bg-surface font-sans text-[15px] leading-[1.65] text-ink sm:text-[15.5px] lg:text-base;
+  }
+  /* ไอคอน SVG: ขนาดเริ่มต้น 1em เสมอ กันการขยายเต็มกล่องเมื่อไม่ได้กำหนดขนาด */
+  svg {
+    @apply inline-block h-[1.05em] w-[1.05em] flex-none align-[-0.15em];
+  }
+  a {
+    @apply text-brand;
+  }
+  h1, h2, h3, h4 {
+    @apply mb-2 font-bold leading-tight tracking-tight text-dark;
+  }
+  h1 { @apply text-[1.75rem] sm:text-[2rem]; }
+  h2 { @apply text-[1.4rem]; }
+  h3 { @apply text-[1.1rem]; }
+  h4 { @apply text-base; }
+  p { @apply mb-4; }
+  ul, ol { @apply mb-4 pl-[22px]; }
+  ul { @apply list-disc; }
+  ol { @apply list-decimal; }
+  img { @apply max-w-full; }
+  code { @apply rounded bg-surface px-1.5 py-0.5 text-[0.85em]; }
+
+  /* ช่องกรอกทุกชนิด — ขนาดตัวอักษร 16px กัน iOS ซูมตอนโฟกัส */
+  input[type='text'], input[type='email'], input[type='tel'], input[type='password'], input[type='number'],
+  input[type='date'], input[type='time'], input[type='datetime-local'], input[type='month'], input[type='search'],
+  select, textarea {
+    @apply min-h-[46px] w-full appearance-none rounded-xl border border-line bg-white px-[13px] py-3 text-base text-ink transition;
+  }
+  input:focus, select:focus, textarea:focus {
+    @apply border-brand outline-none ring-[3px] ring-accent/30;
+  }
+  input::placeholder, textarea::placeholder {
+    @apply text-[#a9b4c4];
+  }
+  textarea {
+    @apply min-h-[96px] resize-y leading-relaxed;
+  }
+  select {
+    @apply pr-9;
+    background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath fill='%235a6880' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 13px center;
+    background-size: 11px;
+  }
+  input[type='file'] {
+    @apply min-h-0 w-full cursor-pointer rounded-xl border border-dashed border-line bg-surface p-2.5 text-sm;
+  }
+  input[type='checkbox'], input[type='radio'] {
+    @apply h-5 w-5 flex-none accent-brand;
+  }
+  input:disabled, select:disabled, textarea:disabled {
+    @apply cursor-not-allowed bg-surface opacity-70;
+  }
+  [hidden] { display: none !important; }
+}
+
+/* ------------------------------------------------------------
+   COMPONENTS — ชิ้นส่วนที่ใช้ซ้ำทั้งระบบ
+   ------------------------------------------------------------ */
+@layer components {
+  /* กรอบเนื้อหากลางจอ */
+  .wrap {
+    @apply mx-auto w-full max-w-wrap px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ---------- ปุ่ม ---------- */
+  .btn {
+    @apply inline-flex min-h-[46px] cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent bg-brand px-5 py-3 text-center text-[0.95rem] font-bold leading-snug text-white no-underline transition hover:bg-brand-700 hover:text-white active:translate-y-px;
+  }
+  .btn svg { @apply h-[17px] w-[17px] flex-none; }
+  .btn-accent { @apply bg-accent text-brand-700 hover:bg-accent-600 hover:text-brand-700; }
+  .btn-ghost { @apply border-line bg-white text-brand hover:border-brand-100 hover:bg-brand-50 hover:text-brand; }
+  .btn-dark { @apply bg-dark hover:bg-dark/90; }
+  .btn-danger { @apply bg-danger text-white hover:bg-danger/90 hover:text-white; }
+  .btn-sm { @apply min-h-[38px] rounded-lg px-3.5 py-2 text-[0.86rem]; }
+  .btn-lg { @apply min-h-[52px] px-6 py-3.5 text-base; }
+  .btn-block { @apply flex w-full; }
+  .btn[disabled], .btn:disabled { @apply pointer-events-none opacity-45; }
+
+  /* ---------- ฟอร์ม ---------- */
+  .field { @apply mb-3.5 last:mb-0; }
+  .field > label, .label {
+    @apply mb-1.5 block text-[0.8rem] font-semibold text-ink-2;
+  }
+  .field .hint, .hint { @apply mt-1.5 text-[0.76rem] leading-normal text-muted; }
+  .checkline { @apply flex cursor-pointer items-start gap-2.5 py-2.5 text-[0.93rem]; }
+  .checkline input { @apply mt-[3px]; }
+
+  /* ---------- กล่องเนื้อหา ---------- */
+  .panel { @apply rounded-2xl border border-line bg-white p-[18px] shadow-soft lg:p-6; }
+  .panel > h2:first-child, .panel > h3:first-child { @apply mt-0; }
+  .panel-flat { @apply border-line-2 bg-surface shadow-none; }
+  .ic-box { @apply mb-3 grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand; }
+  .ic-box svg { @apply h-[21px] w-[21px]; }
+
+  /* ---------- ตาราง ---------- */
+  .table { @apply w-full border-collapse text-[0.89rem]; }
+  .table th, .table td { @apply border-b border-line-2 px-2.5 py-[11px] text-left align-top; }
+  .table th { @apply whitespace-nowrap bg-surface text-[0.78rem] font-bold text-ink-2; }
+  .table tbody tr:last-child td { @apply border-b-0; }
+  .table td.num, .table th.num { @apply whitespace-nowrap text-right tabular-nums; }
+  .table-wrap { @apply -mx-[18px] max-w-[calc(100%+36px)] overflow-x-auto px-[18px] sm:mx-0 sm:max-w-full sm:px-0; }
+
+  /* รายการ label/value */
+  .dl { @apply m-0 grid grid-cols-[auto_1fr] gap-x-3.5 gap-y-2 text-[0.9rem]; }
+  .dl dt { @apply whitespace-nowrap text-ink-2; }
+  .dl dd { @apply m-0 text-right font-semibold; }
+
+  /* ---------- ป้ายสถานะ / ข้อความแจ้ง ---------- */
+  .badge { @apply inline-block rounded-full px-2.5 py-[3px] text-[0.74rem] font-bold leading-[1.7]; }
+  .badge-ok { @apply bg-ok-bg text-ok; }
+  .badge-warn { @apply bg-warn-bg text-warn; }
+  .badge-danger { @apply bg-danger-bg text-danger; }
+  .badge-info { @apply bg-info-bg text-info; }
+  .badge-primary { @apply bg-brand-50 text-brand; }
+  .badge-muted { @apply bg-[#eef0f4] text-ink-2; }
+
+  .alert { @apply mb-3.5 flex items-start gap-2 rounded-xl border border-transparent px-[15px] py-[13px] text-[0.9rem] leading-relaxed; }
+  .alert-ok { @apply border-[#c3e6d5] bg-ok-bg text-ok; }
+  .alert-warn { @apply border-[#f3dfb6] bg-warn-bg text-warn; }
+  .alert-danger { @apply border-[#f5cdca] bg-danger-bg text-danger; }
+  .alert-info { @apply border-[#c8dcee] bg-info-bg text-info; }
+
+  /* ---------- สรุปราคา ---------- */
+  .sum { @apply overflow-hidden rounded-xl border border-line bg-white; }
+  .sum-row { @apply flex justify-between gap-3.5 border-b border-line-2 px-3.5 py-[11px] text-[0.9rem] last:border-b-0; }
+  .sum-row > span:last-child { @apply whitespace-nowrap font-semibold tabular-nums; }
+  .sum-row.total { @apply bg-brand-50 text-base font-extrabold text-brand; }
+  .sum-row.total > span:last-child { @apply font-extrabold; }
+  .sum-row.hl { @apply bg-accent-50 text-accent-600; }
+  .sum-row.hl > span:last-child { @apply font-extrabold; }
+
+  /* กล่องบัญชีธนาคาร */
+  .bank { @apply rounded-xl border border-dashed border-brand-100 bg-brand-50 px-4 py-3.5; }
+
+  /* ---------- หลังบ้าน: การ์ดตัวเลข ---------- */
+  .stat { @apply rounded-2xl border border-line bg-white px-[18px] py-4 shadow-soft; }
+  .stat .lb { @apply flex items-center gap-1.5 text-[0.8rem] font-semibold text-muted; }
+  .stat .vl { @apply mt-1 text-[1.75rem] font-extrabold leading-tight tabular-nums text-dark; }
+  .stat .sub { @apply text-[0.8rem] text-ink-2; }
+  .stat-ok { @apply border-l-4 border-l-ok; }
+  .stat-warn { @apply border-l-4 border-l-warn; }
+  .stat-danger { @apply border-l-4 border-l-danger; }
+  .stat-brand { @apply border-l-4 border-l-brand; }
+  .stat-accent { @apply border-l-4 border-l-accent; }
+
+  /* แถบสัดส่วน */
+  .meter { @apply h-2 overflow-hidden rounded-full bg-line-2; }
+  .meter > i { @apply block h-full rounded-full bg-ok; }
+  .meter.warn > i { @apply bg-accent; }
+  .meter.danger > i { @apply bg-danger; }
+
+  /* ตัวหนังสือสีสถานะ */
+  .txt-danger { @apply text-danger; }
+  .txt-ok { @apply text-ok; }
+  .txt-warn { @apply text-warn; }
+}
+
+/* ------------------------------------------------------------
+   COMPONENTS (หลังบ้าน) — กล่องค่าใช้จ่ายตอนคืนรถ / เช่าต่อ / ปิดเงินประกัน / ลายเซ็น
+   สร้างด้วย JavaScript ในหน้าการจอง จึงตั้งชื่อคลาสไว้ที่นี่
+   ------------------------------------------------------------ */
+@layer components {
+  .chg-box { @apply mb-3 rounded-[10px] border border-line bg-surface px-3 py-[11px]; }
+  .chg-head { @apply mb-2 flex flex-col gap-px; }
+  .chg-row { @apply flex items-center gap-2 border-t border-dashed border-line py-[7px] first:border-t-0; }
+  .chg-main { @apply m-0 flex min-w-0 flex-1 cursor-pointer items-start gap-2 font-normal; }
+  .chg-main input { @apply mt-1 h-[18px] w-[18px] flex-none; }
+  .chg-main > span { @apply flex min-w-0 flex-col leading-snug; }
+  .chg-main b { @apply text-[0.9rem]; }
+  .chg-row.off .chg-main b { @apply text-muted line-through; }
+  .chg-row.off .chg-amt { @apply opacity-45; }
+  .chg-box .chg-amt { @apply w-[92px] flex-none px-2 py-[7px] text-right tabular-nums; }
+  .chg-other { @apply border-t border-dashed border-line; }
+  .chg-other input[type='text'] { @apply min-w-0 flex-1 px-2 py-[7px]; }
+  .chg-total { @apply mt-1.5 flex items-baseline justify-between gap-2.5 border-t border-line pt-2 text-[0.95rem]; }
+  .chg-total b { @apply whitespace-nowrap tabular-nums; }
+  .chg-total.sub { @apply mt-0 border-t-0 pt-[3px] text-[0.85rem] text-ink-2; }
+  .chg-total.sub b { @apply font-semibold; }
+  .chg-box .field:last-of-type { @apply mb-2; }
+
+  .sig-item { @apply border-t border-line py-2.5 first-of-type:border-t-0 first-of-type:pt-0.5; }
+  .sig-head { @apply mb-[7px] flex items-center justify-between gap-2 text-[0.92rem]; }
+  .sig-img { @apply mb-[5px] block w-full max-w-[240px] rounded-lg border border-line bg-white; }
+  .sig-copy { @apply flex gap-1.5; }
+  .sig-copy input { @apply min-w-0 flex-1 px-2 py-1.5 text-[0.78rem] text-ink-2; }
+  .sig-copy .btn { @apply flex-none whitespace-nowrap; }
+
+  /* ตารางย่อ */
+  .table.tiny th, .table.tiny td { @apply px-1.5 py-[5px] text-[0.84rem]; }
+  .table .badge, .table td .btn { @apply whitespace-nowrap; }
+
+  /* แถบเครื่องมือกรองรายการ */
+  .toolbar { @apply mb-4 flex flex-wrap items-end gap-2.5; }
+  .toolbar .field { @apply mb-0; }
+  .toolbar .field input, .toolbar .field select { @apply min-w-[150px]; }
+}
+
+/* ------------------------------------------------------------
+   COMPONENTS (หลังบ้าน) — หน้าถ่ายรูปตรวจสภาพรถ 8 มุม (ใช้บนมือถือเป็นหลัก)
+   ------------------------------------------------------------ */
+@layer components {
+  /* แถบความคืบหน้า — เกาะบนสุดตอนเลื่อนหน้า เพื่อให้รู้ว่าเหลือกี่มุม */
+  .insp-bar { @apply sticky top-[62px] z-20 mb-3.5 flex h-[38px] items-center overflow-hidden rounded-xl border border-line bg-white; }
+  .insp-bar-fill { @apply absolute inset-y-0 left-0 border-r-2 border-accent bg-accent-50 transition-[width] duration-300; }
+  .insp-bar-txt { @apply relative px-3.5 text-[0.9rem] font-semibold; }
+  .insp-bar-txt b { @apply text-accent-600; }
+
+  .insp-grid { @apply grid grid-cols-1 gap-3 min-[900px]:grid-cols-2; }
+
+  /* มือถือ: รูปอยู่ซ้ายคร่อม 2 แถว / ข้อความขวาบน / ปุ่มเต็มความกว้างล่าง
+     ไม่บีบข้อความให้เหลือคอลัมน์แคบๆ เพราะคำแนะนำวิธีถ่ายต้องอ่านออกหน้างาน */
+  .insp-card {
+    @apply grid min-w-0 items-start gap-x-3 gap-y-2.5 rounded-xl border border-line bg-white p-[11px];
+    grid-template-columns: 76px 1fr;
+    grid-template-areas: "thumb meta" "btn btn";
+  }
+  .insp-card.has { @apply border-accent-100 bg-accent-50; }
+  .insp-card .insp-thumb { grid-area: thumb; }
+  .insp-card .insp-meta { grid-area: meta; }
+  .insp-card .insp-btn { grid-area: btn; @apply w-full justify-center; }
+  @media (min-width: 560px) {
+    .insp-card { grid-template-columns: 76px 1fr auto; grid-template-areas: "thumb meta btn"; @apply items-center; }
+    .insp-card .insp-btn { @apply w-auto; }
+  }
+
+  .insp-thumb { @apply relative flex h-[76px] w-[76px] flex-none items-center justify-center overflow-hidden rounded-[10px] bg-brand-50; }
+  .insp-thumb img { @apply block h-full w-full object-cover; }
+  .insp-ph { @apply text-muted; }
+  .insp-ph svg { @apply h-[26px] w-[26px]; }
+
+  /* ติ๊กถูกมุมขวาบน — ขึ้นเฉพาะการ์ดที่ถ่ายแล้ว */
+  .insp-badge { @apply absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-ok text-white; }
+  .insp-badge svg { @apply h-[13px] w-[13px]; stroke-width: 3; }
+  .insp-card.has .insp-badge { @apply flex; }
+
+  /* วงหมุนตอนกำลังอัป — ทับรูปไว้ให้รู้ว่ายังไม่เสร็จ */
+  .insp-spin { @apply absolute inset-0 hidden bg-white/70; }
+  .insp-spin::after {
+    content: ""; @apply absolute left-1/2 top-1/2 -ml-[11px] -mt-[11px] h-[22px] w-[22px] animate-spin rounded-full border-[2.5px] border-brand-100 border-t-accent;
+  }
+  .insp-card.busy .insp-spin { @apply block; }
+
+  .insp-meta { @apply flex min-w-0 flex-col gap-0.5; }
+  .insp-meta b { @apply text-[0.95rem]; }
+  .insp-meta .opt { @apply text-[0.82rem] font-normal text-muted; }
+  .insp-err { @apply min-h-0 text-danger; }
+  .insp-err:not(:empty) { @apply mt-[3px]; }
+  .insp-btn { @apply flex-none cursor-pointer whitespace-nowrap; }
+
+  /* แถวรูปของอีกรอบ (ไว้เทียบก่อน–หลัง) */
+  .insp-mini { @apply mt-2.5 grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(110px,1fr))]; }
+  .insp-mini a { @apply block min-w-0 text-ink-2 no-underline; }
+  .insp-mini img { @apply block aspect-[4/3] w-full rounded-lg border border-line object-cover; }
+  .insp-mini span { @apply mt-1 block text-center text-[0.78rem]; }
+
+  /* ---------- ชิ้นส่วนที่ใช้ซ้ำในหลายหน้า (ตั้งชื่อให้อ่านใน View ง่าย) ---------- */
+  .eyebrow { @apply mb-[5px] text-[0.72rem] font-extrabold uppercase tracking-[0.14em] text-accent-600; }
+  .stat-grid-lg { @apply mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))]; }
+  .stat-grid-md { @apply mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(170px,1fr))]; }
+  .stat-grid-sm { @apply mb-[22px] grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(160px,1fr))]; }
+  .main-side-grid { @apply mt-6 grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] lg:gap-6; }
+  .note-box { @apply rounded-xl bg-surface px-[15px] py-[13px] print:[print-color-adjust:exact]; }
+  .side-heading { @apply px-2.5 pb-1.5 pt-4 text-[0.7rem] font-bold uppercase tracking-[0.07em] text-white/35; }
+  .side-link { @apply mb-0.5 flex items-center gap-2.5 rounded-lg px-[11px] py-[9px] text-[0.92rem] text-white/75 no-underline hover:bg-white/10 hover:text-white; }
+  .car-grid { @apply grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-[18px]; }
+  .media-card { @apply flex items-start gap-3 rounded-xl border border-line-2 bg-surface p-3.5; }
+  .list-row { @apply flex items-center justify-between gap-2.5 border-t border-line py-2 first:border-t-0 first:pt-0; }
+}
+
+
+/* ------------------------------------------------------------
+   UTILITIES เสริม
+   ------------------------------------------------------------ */
+@layer utilities {
+  /* ซ่อนลูกศรเริ่มต้นของ <summary> (ใช้กับ accordion ที่วาดไอคอนเอง) */
+  .summary-plain { list-style: none; }
+  .summary-plain::-webkit-details-marker { display: none; }
+  .scroll-hide { scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .scroll-hide::-webkit-scrollbar { display: none; }
+}
+
+/* พิมพ์: ซ่อนส่วนที่ไม่ใช่เนื้อหา และให้พื้นขาว */
+@media print {
+  @page { margin: 14mm; }
+  body { background: #fff !important; }
+  .table th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

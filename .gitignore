@@ -1,0 +1,11 @@
+node_modules/
+storage/backups/*
+!storage/backups/.gitkeep
+storage/private/*
+!storage/private/.gitkeep
+!storage/private/.htaccess
+uploads/slips/*
+uploads/inspections/*
+uploads/docs/*
+!uploads/*/.gitkeep
+storage/.installed

@@ -1,16 +1,28 @@
 # ============================================================
-#  thonglorcarrent
+#  thonglorcarrent (MVC)
 #  เขียนให้รองรับทั้ง Apache 2.2 / 2.4 / LiteSpeed
 #  ทุก directive ห่อด้วย IfModule เพื่อไม่ให้ host ที่ไม่มีโมดูลนั้นขึ้น error 500
 # ============================================================
 
 Options -Indexes
+DirectoryIndex index.php index.html
 
-# ---------- บังคับ HTTPS (เปิดใช้หลังติดตั้ง SSL แล้ว โดยลบ # ออก 3 บรรทัด) ----------
+# ---------- Front controller ----------
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # บังคับ HTTPS (เปิดใช้หลังติดตั้ง SSL แล้ว โดยลบ # ออก 2 บรรทัด)
   # RewriteCond %{HTTPS} off
   # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # โฟลเดอร์ภายในและไฟล์ตั้งค่า — ห้ามเปิดผ่านเว็บ (ตอบ 404 ผ่านหน้าระบบ)
+  RewriteRule ^(app|config|database|storage|node_modules|assets/css/src)(/|$) - [R=404,L]
+  RewriteRule ^(package(-lock)?\.json|tailwind\.config\.js|\.git.*)$ - [R=404,L]
+
+  # ทุกอย่างที่ไม่ใช่ไฟล์/โฟลเดอร์จริง → index.php (ให้ Router ตัดสินใจ)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.php [L]
 </IfModule>
 
 # ---------- ปิดการเข้าถึงไฟล์ภายในโดยตรง ----------
@@ -45,8 +57,3 @@ Options -Indexes
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json
 </IfModule>
-
-# หน้า 404 — ใช้ path แบบสัมพัทธ์กับโฟลเดอร์ที่ติดตั้ง
-# ถ้าเว็บอยู่ที่ example.com/thonglorcarrent  ให้เป็น /thonglorcarrent/404.php
-# ถ้าเว็บอยู่ที่ราก (example.com)             ให้เป็น /404.php
-ErrorDocument 404 /thonglorcarrent/404.php
