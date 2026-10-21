@@ -51,15 +51,23 @@ final class PrivateFileService
         if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) {
             throw new \RuntimeException('สร้างโฟลเดอร์เก็บไฟล์ไม่สำเร็จ กรุณาตรวจสิทธิ์โฟลเดอร์ storage');
         }
-        foreach ([APP_ROOT . '/storage', self::root()] as $d) {
-            if (is_dir($d) && !is_file($d . '/.htaccess')) {
-                @file_put_contents($d . '/.htaccess', self::denyRules());
-            }
-            if (is_dir($d) && !is_file($d . '/index.html')) {
-                @file_put_contents($d . '/index.html', '');
-            }
-        }
+        self::protectFolder(APP_ROOT . '/storage');
+        self::protectFolder(self::root());
         return $dir;
+    }
+
+    /** วางไฟล์กันการเข้าถึงผ่านเว็บ (.htaccess + index.html ว่าง) ถ้ายังไม่มี */
+    private static function protectFolder(string $folder): void
+    {
+        if (!is_dir($folder)) {
+            return;
+        }
+        if (!is_file($folder . '/.htaccess')) {
+            @file_put_contents($folder . '/.htaccess', self::denyRules());
+        }
+        if (!is_file($folder . '/index.html')) {
+            @file_put_contents($folder . '/index.html', '');
+        }
     }
 
     /** เขียนข้อมูลลงที่เก็บแบบปิด คืน path แบบสัมพัทธ์ เช่น signatures/202610/ab12….png */
@@ -109,26 +117,27 @@ final class PrivateFileService
     /** path จริงของไฟล์ในที่เก็บแบบปิด — คืน null ถ้าไม่มีไฟล์หรือ path พยายามออกนอกโฟลเดอร์ */
     public static function path(?string $rel): ?string
     {
-        if (!$rel || str_contains($rel, "\0")) {
-            return null;
-        }
-        $root = realpath(self::root());
-        $full = realpath(self::root() . '/' . ltrim($rel, '/'));
-        if ($root === false || $full === false || !is_file($full) || !str_starts_with($full, $root . DIRECTORY_SEPARATOR)) {
-            return null;
-        }
-        return $full;
+        return self::insideFolder(self::root(), $rel);
     }
 
     /** path จริงของไฟล์เดิมใน uploads/ (เอกสารที่อัปโหลดก่อนเวอร์ชัน 5) พร้อมกันการออกนอกโฟลเดอร์ */
     public static function legacyPath(?string $rel): ?string
     {
+        return self::insideFolder(rtrim(UPLOAD_DIR, '/'), $rel);
+    }
+
+    /** หาไฟล์จริงใต้โฟลเดอร์ที่กำหนด — ต้องมีไฟล์อยู่จริงและห้ามหลุดออกนอกโฟลเดอร์ (เช่น ../) */
+    private static function insideFolder(string $folder, ?string $rel): ?string
+    {
         if (!$rel || str_contains($rel, "\0")) {
             return null;
         }
-        $root = realpath(rtrim(UPLOAD_DIR, '/'));
-        $full = realpath(rtrim(UPLOAD_DIR, '/') . '/' . ltrim($rel, '/'));
-        if ($root === false || $full === false || !is_file($full) || !str_starts_with($full, $root . DIRECTORY_SEPARATOR)) {
+        $root = realpath($folder);
+        $full = realpath($folder . '/' . ltrim($rel, '/'));
+        if ($root === false || $full === false || !is_file($full)) {
+            return null;
+        }
+        if (!str_starts_with($full, $root . DIRECTORY_SEPARATOR)) {
             return null;
         }
         return $full;
@@ -163,7 +172,10 @@ final class PrivateFileService
             return '';
         }
         $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($full);
-        return isset(self::allowedMimes()[$mime]) ? 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($full)) : '';
+        if (!isset(self::allowedMimes()[$mime])) {
+            return '';
+        }
+        return 'data:' . $mime . ';base64,' . base64_encode((string) file_get_contents($full));
     }
 
     // ------------------------------------------------------------
@@ -174,10 +186,7 @@ final class PrivateFileService
     {
         $dir = rtrim(UPLOAD_DIR, '/') . '/docs';
         if (is_dir($dir) && !is_file($dir . '/.htaccess')) {
-            @file_put_contents($dir . '/.htaccess',
-                "# สำเนาบัตรและใบขับขี่ของลูกค้า — ห้ามเปิดผ่านลิงก์ตรง เปิดดูได้ทางหลังบ้านเท่านั้น\n"
-                . "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n"
-                . "<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n");
+            @file_put_contents($dir . '/.htaccess', self::denyRules());
         }
     }
 
@@ -188,50 +197,60 @@ final class PrivateFileService
      */
     public static function migrateLegacyDocs(?int $userId = null): array
     {
-        $out = ['moved' => 0, 'missing' => 0, 'failed' => 0];
-        $map = ['id_card_file' => 'id_card', 'license_file' => 'driver_license'];
-        foreach (Customer::withLegacyFiles() as $c) {
-            foreach ($map as $col => $kind) {
-                if (empty($c[$col])) {
+        $result  = ['moved' => 0, 'missing' => 0, 'failed' => 0];
+        $columns = ['id_card_file' => 'id_card', 'license_file' => 'driver_license'];
+
+        foreach (Customer::withLegacyFiles() as $customer) {
+            foreach ($columns as $column => $kind) {
+                if (empty($customer[$column])) {
                     continue;
                 }
-                $src = self::legacyPath($c[$col]);
-                if (!$src) {
-                    $out['missing']++;          // มีชื่อไฟล์ในฐานข้อมูลแต่ไม่พบไฟล์จริง — คงข้อมูลไว้ให้ตรวจ
-                    continue;
-                }
-                $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($src);
-                $ext  = self::allowedMimes()[$mime] ?? null;
-                if ($ext === null) {
-                    $out['failed']++;
-                    continue;
-                }
-                $rel  = 'docs/' . date('Ym');
-                $dest = self::dir($rel) . '/' . bin2hex(random_bytes(16)) . '.' . $ext;
-                $size = (int) filesize($src);
-                if (!@rename($src, $dest)) {
-                    $out['failed']++;
-                    continue;
-                }
-                @chmod($dest, 0640);
-                // บันทึกฐานข้อมูลไม่สำเร็จ → ย้ายไฟล์กลับที่เดิม ไม่ปล่อยให้ไฟล์ค้างอยู่โดยไม่มีข้อมูลชี้ถึง
-                Database::begin();
-                try {
-                    Customer::addDocument([
-                        'customer_id' => (int) $c['id'], 'doc_kind' => $kind, 'file_path' => $rel . '/' . basename($dest),
-                        'mime' => $mime, 'file_size' => $size, 'note' => 'ย้ายจากที่เก็บเดิม', 'uploaded_by' => $userId,
-                    ]);
-                    Customer::clearLegacyFile((int) $c['id'], $col);
-                    Database::commit();
-                } catch (\Throwable $e) {
-                    Database::rollBack();
-                    @rename($dest, $src);
-                    $out['failed']++;
-                    continue;
-                }
-                $out['moved']++;
+                $status = self::migrateOne($customer, $column, $kind, $userId);
+                $result[$status]++;
             }
         }
-        return $out;
+        return $result;
+    }
+
+    /** ย้ายไฟล์เดียว @return string 'moved' | 'missing' | 'failed' */
+    private static function migrateOne(array $customer, string $column, string $kind, ?int $userId): string
+    {
+        $src = self::legacyPath($customer[$column]);
+        if (!$src) {
+            return 'missing';   // มีชื่อไฟล์ในฐานข้อมูลแต่ไม่พบไฟล์จริง — คงข้อมูลไว้ให้ตรวจ
+        }
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($src);
+        $ext  = self::allowedMimes()[$mime] ?? null;
+        if ($ext === null) {
+            return 'failed';
+        }
+        $rel  = 'docs/' . date('Ym');
+        $dest = self::dir($rel) . '/' . bin2hex(random_bytes(16)) . '.' . $ext;
+        $size = (int) filesize($src);
+        if (!@rename($src, $dest)) {
+            return 'failed';
+        }
+        @chmod($dest, 0640);
+
+        // บันทึกฐานข้อมูลไม่สำเร็จ → ย้ายไฟล์กลับที่เดิม ไม่ปล่อยให้ไฟล์ค้างอยู่โดยไม่มีข้อมูลชี้ถึง
+        Database::begin();
+        try {
+            Customer::addDocument([
+                'customer_id' => (int) $customer['id'],
+                'doc_kind'    => $kind,
+                'file_path'   => $rel . '/' . basename($dest),
+                'mime'        => $mime,
+                'file_size'   => $size,
+                'note'        => 'ย้ายจากที่เก็บเดิม',
+                'uploaded_by' => $userId,
+            ]);
+            Customer::clearLegacyFile((int) $customer['id'], $column);
+            Database::commit();
+        } catch (\Throwable $e) {
+            Database::rollBack();
+            @rename($dest, $src);
+            return 'failed';
+        }
+        return 'moved';
     }
 }

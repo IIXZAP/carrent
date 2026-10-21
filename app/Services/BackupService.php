@@ -24,15 +24,19 @@ final class BackupService
         // ปิดการเข้าถึงผ่านเว็บ 2 ชั้น: .htaccess (Apache/LiteSpeed) + ชื่อไฟล์มีรหัสสุ่มเดาไม่ได้
         $root = APP_ROOT . '/storage';
         if (is_dir($root) && !is_file($root . '/.htaccess')) {
-            @file_put_contents($root . '/.htaccess',
-                "# ปิดการเข้าถึงโฟลเดอร์นี้ผ่านเว็บทั้งหมด — ไฟล์สำรองดาวน์โหลดได้ทางหลังบ้านเท่านั้น\n"
-                . "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n"
-                . "<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n");
+            @file_put_contents($root . '/.htaccess', self::denyRules());
         }
         if (is_dir($root) && !is_file($root . '/index.html')) {
             @file_put_contents($root . '/index.html', '');
         }
         return $dir;
+    }
+
+    private static function denyRules(): string
+    {
+        return "# ปิดการเข้าถึงโฟลเดอร์นี้ผ่านเว็บทั้งหมด — ไฟล์สำรองดาวน์โหลดได้ทางหลังบ้านเท่านั้น\n"
+             . "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n"
+             . "<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n";
     }
 
     /** รายการไฟล์สำรอง ใหม่สุดก่อน */
@@ -42,8 +46,13 @@ final class BackupService
         foreach (glob(self::dir() . '/db_*.sql*') ?: [] as $f) {
             $out[] = ['name' => basename($f), 'path' => $f, 'size' => (int) filesize($f), 'time' => (int) filemtime($f)];
         }
-        usort($out, fn($a, $b) => $b['time'] <=> $a['time']);
+        usort($out, [self::class, 'newestFirst']);
         return $out;
+    }
+
+    private static function newestFirst(array $a, array $b): int
+    {
+        return $b['time'] <=> $a['time'];
     }
 
     /**
@@ -56,79 +65,30 @@ final class BackupService
         if (!is_dir($dir) || !is_writable($dir)) {
             throw new \RuntimeException('เขียนไฟล์ลงโฟลเดอร์ storage/backups ไม่ได้ กรุณาตรวจสิทธิ์โฟลเดอร์ (ควรเป็น 755)');
         }
+        self::removeStaleTempFiles($dir);
+
         $gz   = function_exists('gzopen');
         $name = 'db_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.sql' . ($gz ? '.gz' : '');
         $path = $dir . '/' . $name;
         // เขียนลงไฟล์ชั่วคราวก่อน เสร็จสมบูรณ์แล้วจึงเปลี่ยนชื่อเป็นไฟล์สำรองจริง
         // ถ้าพื้นที่เต็มกลางทาง จะไม่มีไฟล์สำรองครึ่งๆ กลางๆ ปนอยู่กับไฟล์ที่ใช้กู้ได้จริง
         $tmp = $dir . '/part_' . bin2hex(random_bytes(6)) . '.tmp';
-        // ไฟล์ชั่วคราวที่ค้างจากรอบก่อน (สคริปต์ถูกตัดกลางทางเพราะหมดเวลา) — เก็บกวาดเมื่อเก่ากว่า 1 ชั่วโมง
-        foreach (glob($dir . '/part_*.tmp') ?: [] as $old) {
-            if (filemtime($old) < time() - 3600) {
-                @unlink($old);
-            }
-        }
 
-        $fh = $gz ? gzopen($tmp, 'wb6') : fopen($tmp, 'wb');
-        if (!$fh) {
+        $handle = $gz ? gzopen($tmp, 'wb6') : fopen($tmp, 'wb');
+        if (!$handle) {
             throw new \RuntimeException('สร้างไฟล์สำรองไม่สำเร็จ');
         }
-        $w = function (string $s) use ($gz, $fh): void {
-            $n = $gz ? gzwrite($fh, $s) : fwrite($fh, $s);
-            if ($n === false || $n < strlen($s)) {
-                throw new \RuntimeException('เขียนไฟล์สำรองไม่ครบ — พื้นที่บนเซิร์ฟเวอร์อาจเต็ม');
-            }
-        };
 
         try {
-            $pdo = Database::pdo();
-            $w("-- thonglorcarrent database backup\n-- สร้างเมื่อ " . date('Y-m-d H:i:s') . "\n-- ฐานข้อมูล " . DB_NAME . "\n\n");
-            $w("SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\nSET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n");
-
-            $tables = $rows = 0;
-            foreach ($pdo->query('SHOW FULL TABLES')->fetchAll(\PDO::FETCH_NUM) as $t) {
-                if (($t[1] ?? 'BASE TABLE') !== 'BASE TABLE') {
-                    continue;
-                }
-                $table  = $t[0];
-                $quoted = '`' . str_replace('`', '``', $table) . '`';
-                $create = $pdo->query('SHOW CREATE TABLE ' . $quoted)->fetch(\PDO::FETCH_NUM);
-
-                $w("-- ----------------------------\n-- $table\n-- ----------------------------\n");
-                $w("DROP TABLE IF EXISTS $quoted;\n" . $create[1] . ";\n\n");
-
-                $stmt  = $pdo->query('SELECT * FROM ' . $quoted);
-                $batch = [];
-                $cols  = null;
-                while ($r = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-                    if ($cols === null) {
-                        $cols = '(' . implode(',', array_map(fn($c) => '`' . str_replace('`', '``', $c) . '`', array_keys($r))) . ')';
-                    }
-                    $batch[] = '(' . implode(',', array_map(fn($v) => $v === null ? 'NULL' : $pdo->quote((string) $v), $r)) . ')';
-                    $rows++;
-                    if (count($batch) >= 200) {
-                        $w("INSERT INTO $quoted $cols VALUES\n" . implode(",\n", $batch) . ";\n");
-                        $batch = [];
-                    }
-                }
-                if ($batch) {
-                    $w("INSERT INTO $quoted $cols VALUES\n" . implode(",\n", $batch) . ";\n");
-                }
-                $w("\n");
-                $tables++;
-            }
-            $w("SET FOREIGN_KEY_CHECKS = 1;\n-- จบไฟล์สำรอง: $tables ตาราง $rows แถว\n");
-            if (!($gz ? gzclose($fh) : fclose($fh))) {
-                $fh = null;
-                throw new \RuntimeException('ปิดไฟล์สำรองไม่สำเร็จ — พื้นที่บนเซิร์ฟเวอร์อาจเต็ม');
-            }
-            $fh = null;
+            $count = self::dumpAll($handle, $gz);
+            self::closeHandle($handle, $gz);
+            $handle = null;
             if (!@rename($tmp, $path)) {
                 throw new \RuntimeException('บันทึกไฟล์สำรองไม่สำเร็จ');
             }
         } catch (\Throwable $e) {
-            if ($fh) {
-                $gz ? @gzclose($fh) : @fclose($fh);
+            if ($handle) {
+                $gz ? @gzclose($handle) : @fclose($handle);
             }
             @unlink($tmp);     // ไฟล์ชั่วคราวที่ฟังก์ชันนี้เพิ่งสร้างเองและเขียนไม่จบ — ไม่ใช่ไฟล์สำรอง
             throw $e;
@@ -136,7 +96,106 @@ final class BackupService
         @chmod($path, 0640);
 
         set_setting('backup_last_at', date('Y-m-d H:i:s'));
-        return ['name' => $name, 'size' => (int) filesize($path), 'tables' => $tables, 'rows' => $rows];
+        return ['name' => $name, 'size' => (int) filesize($path), 'tables' => $count['tables'], 'rows' => $count['rows']];
+    }
+
+    /** ไฟล์ชั่วคราวที่ค้างจากรอบก่อน (สคริปต์ถูกตัดกลางทางเพราะหมดเวลา) — เก็บกวาดเมื่อเก่ากว่า 1 ชั่วโมง */
+    private static function removeStaleTempFiles(string $dir): void
+    {
+        foreach (glob($dir . '/part_*.tmp') ?: [] as $old) {
+            if (filemtime($old) < time() - 3600) {
+                @unlink($old);
+            }
+        }
+    }
+
+    private static function closeHandle($handle, bool $gz): void
+    {
+        $closed = $gz ? gzclose($handle) : fclose($handle);
+        if (!$closed) {
+            throw new \RuntimeException('ปิดไฟล์สำรองไม่สำเร็จ — พื้นที่บนเซิร์ฟเวอร์อาจเต็ม');
+        }
+    }
+
+    /** เขียนข้อความลงไฟล์สำรอง — ถ้าเขียนไม่ครบแปลว่าพื้นที่เต็ม */
+    private static function write($handle, bool $gz, string $text): void
+    {
+        $written = $gz ? gzwrite($handle, $text) : fwrite($handle, $text);
+        if ($written === false || $written < strlen($text)) {
+            throw new \RuntimeException('เขียนไฟล์สำรองไม่ครบ — พื้นที่บนเซิร์ฟเวอร์อาจเต็ม');
+        }
+    }
+
+    /** เขียนทุกตารางลงไฟล์ @return array{tables:int,rows:int} */
+    private static function dumpAll($handle, bool $gz): array
+    {
+        $pdo = Database::pdo();
+        self::write($handle, $gz, "-- thonglorcarrent database backup\n-- สร้างเมื่อ " . date('Y-m-d H:i:s') . "\n-- ฐานข้อมูล " . DB_NAME . "\n\n");
+        self::write($handle, $gz, "SET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS = 0;\nSET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n\n");
+
+        $tables = 0;
+        $rows   = 0;
+        foreach ($pdo->query('SHOW FULL TABLES')->fetchAll(\PDO::FETCH_NUM) as $t) {
+            if (($t[1] ?? 'BASE TABLE') !== 'BASE TABLE') {
+                continue;   // ข้าม view
+            }
+            $rows += self::dumpTable($handle, $gz, $t[0]);
+            $tables++;
+        }
+        self::write($handle, $gz, "SET FOREIGN_KEY_CHECKS = 1;\n-- จบไฟล์สำรอง: $tables ตาราง $rows แถว\n");
+        return ['tables' => $tables, 'rows' => $rows];
+    }
+
+    /** เขียนโครงสร้าง + ข้อมูลของตารางเดียว @return int จำนวนแถว */
+    private static function dumpTable($handle, bool $gz, string $table): int
+    {
+        $pdo    = Database::pdo();
+        $quoted = '`' . str_replace('`', '``', $table) . '`';
+        $create = $pdo->query('SHOW CREATE TABLE ' . $quoted)->fetch(\PDO::FETCH_NUM);
+
+        self::write($handle, $gz, "-- ----------------------------\n-- $table\n-- ----------------------------\n");
+        self::write($handle, $gz, "DROP TABLE IF EXISTS $quoted;\n" . $create[1] . ";\n\n");
+
+        $stmt    = $pdo->query('SELECT * FROM ' . $quoted);
+        $batch   = [];
+        $columns = null;
+        $rows    = 0;
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            if ($columns === null) {
+                $columns = self::columnList(array_keys($row));
+            }
+            $batch[] = self::valueList($pdo, $row);
+            $rows++;
+            if (count($batch) >= 200) {
+                self::write($handle, $gz, "INSERT INTO $quoted $columns VALUES\n" . implode(",\n", $batch) . ";\n");
+                $batch = [];
+            }
+        }
+        if ($batch) {
+            self::write($handle, $gz, "INSERT INTO $quoted $columns VALUES\n" . implode(",\n", $batch) . ";\n");
+        }
+        self::write($handle, $gz, "\n");
+        return $rows;
+    }
+
+    /** (`col1`,`col2`,...) */
+    private static function columnList(array $names): string
+    {
+        $quoted = [];
+        foreach ($names as $name) {
+            $quoted[] = '`' . str_replace('`', '``', $name) . '`';
+        }
+        return '(' . implode(',', $quoted) . ')';
+    }
+
+    /** ('ค่า1',NULL,...) */
+    private static function valueList(\PDO $pdo, array $row): string
+    {
+        $values = [];
+        foreach ($row as $value) {
+            $values[] = $value === null ? 'NULL' : $pdo->quote((string) $value);
+        }
+        return '(' . implode(',', $values) . ')';
     }
 
     /**

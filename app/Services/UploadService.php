@@ -18,34 +18,44 @@ final class UploadService
     /** ขนาดอัปโหลดสูงสุดที่ใช้ได้จริง (หน่วยไบต์) — ค่าที่น้อยกว่าระหว่าง upload_max กับ post_max */
     public static function limitBytes(): int
     {
-        $toBytes = static function (string $v): int {
-            $v = trim($v);
-            $n = (int) $v;
-            return match (strtolower(substr($v, -1))) {
-                'g'     => $n * 1024 * 1024 * 1024,
-                'm'     => $n * 1024 * 1024,
-                'k'     => $n * 1024,
-                default => $n,
-            };
-        };
-        $u = $toBytes((string) ini_get('upload_max_filesize'));
-        $p = $toBytes((string) ini_get('post_max_size'));
-        $vals = array_filter([$u, $p]);
-        return $vals ? min($vals) : 2 * 1024 * 1024;
+        $limits = array_filter([
+            self::iniToBytes((string) ini_get('upload_max_filesize')),
+            self::iniToBytes((string) ini_get('post_max_size')),
+        ]);
+        return $limits ? min($limits) : 2 * 1024 * 1024;
+    }
+
+    /** แปลงค่าแบบ php.ini เช่น "8M" "2G" "512K" เป็นไบต์ */
+    private static function iniToBytes(string $value): int
+    {
+        $value  = trim($value);
+        $number = (int) $value;
+        switch (strtolower(substr($value, -1))) {
+            case 'g':
+                return $number * 1024 * 1024 * 1024;
+            case 'm':
+                return $number * 1024 * 1024;
+            case 'k':
+                return $number * 1024;
+        }
+        return $number;
     }
 
     /** แปลงรหัสข้อผิดพลาดของ PHP เป็นภาษาที่แอดมินหน้างานเข้าใจและแก้ได้เอง */
     public static function errorMessage(int $code): string
     {
-        return match ($code) {
-            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE =>
-                'ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับได้ (ขีดจำกัด ' . ini_get('upload_max_filesize') . ') '
-                . 'กรุณาถ่ายผ่านหน้าเว็บบนมือถือ ระบบจะย่อรูปให้อัตโนมัติ',
-            UPLOAD_ERR_PARTIAL   => 'อัปโหลดไม่ครบ สัญญาณอาจหลุดกลางคัน กรุณาลองใหม่',
-            UPLOAD_ERR_NO_TMP_DIR,
-            UPLOAD_ERR_CANT_WRITE => 'เซิร์ฟเวอร์เขียนไฟล์ไม่ได้ กรุณาติดต่อผู้ดูแลระบบ',
-            default              => 'อัปโหลดไฟล์ไม่สำเร็จ (code ' . $code . ')',
-        };
+        switch ($code) {
+            case UPLOAD_ERR_INI_SIZE:
+            case UPLOAD_ERR_FORM_SIZE:
+                return 'ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับได้ (ขีดจำกัด ' . ini_get('upload_max_filesize') . ') '
+                     . 'กรุณาถ่ายผ่านหน้าเว็บบนมือถือ ระบบจะย่อรูปให้อัตโนมัติ';
+            case UPLOAD_ERR_PARTIAL:
+                return 'อัปโหลดไม่ครบ สัญญาณอาจหลุดกลางคัน กรุณาลองใหม่';
+            case UPLOAD_ERR_NO_TMP_DIR:
+            case UPLOAD_ERR_CANT_WRITE:
+                return 'เซิร์ฟเวอร์เขียนไฟล์ไม่ได้ กรุณาติดต่อผู้ดูแลระบบ';
+        }
+        return 'อัปโหลดไฟล์ไม่สำเร็จ (code ' . $code . ')';
     }
 
     /**
@@ -102,23 +112,33 @@ final class UploadService
         if (max($w, $h) <= $maxSide) {
             return;   // เล็กอยู่แล้ว (เบราว์เซอร์ย่อมาให้แล้ว)
         }
-        $src = match ($type) {
-            IMAGETYPE_JPEG => @imagecreatefromjpeg($fullPath),
-            IMAGETYPE_PNG  => @imagecreatefrompng($fullPath),
-            IMAGETYPE_WEBP => function_exists('imagecreatefromwebp') ? @imagecreatefromwebp($fullPath) : null,
-            default        => null,
-        };
+        $src = self::openImage($fullPath, $type);
         if (!$src) {
             return;
         }
-        $scale = $maxSide / max($w, $h);
-        $nw = max(1, (int) round($w * $scale));
-        $nh = max(1, (int) round($h * $scale));
-        $dst = imagecreatetruecolor($nw, $nh);
-        imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
-        @imagejpeg($dst, $fullPath, $quality);
+        $scale  = $maxSide / max($w, $h);
+        $newW   = max(1, (int) round($w * $scale));
+        $newH   = max(1, (int) round($h * $scale));
+        $resized = imagecreatetruecolor($newW, $newH);
+        imagecopyresampled($resized, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
+        @imagejpeg($resized, $fullPath, $quality);
         imagedestroy($src);
-        imagedestroy($dst);
+        imagedestroy($resized);
+    }
+
+    /** เปิดรูปตามชนิด (JPEG / PNG / WEBP) คืน false ถ้าเปิดไม่ได้ */
+    private static function openImage(string $path, int $type)
+    {
+        if ($type === IMAGETYPE_JPEG) {
+            return @imagecreatefromjpeg($path);
+        }
+        if ($type === IMAGETYPE_PNG) {
+            return @imagecreatefrompng($path);
+        }
+        if ($type === IMAGETYPE_WEBP && function_exists('imagecreatefromwebp')) {
+            return @imagecreatefromwebp($path);
+        }
+        return false;
     }
 
     /** ขนาดรวมและจำนวนไฟล์ในโฟลเดอร์ (หยุดนับที่ 20,000 ไฟล์ กันช้า) */
@@ -140,6 +160,7 @@ final class UploadService
                 }
             }
         } catch (\Throwable $e) {
+            // อ่านโฟลเดอร์ไม่ได้ — คืนเท่าที่นับได้
         }
         return [$bytes, $files];
     }
