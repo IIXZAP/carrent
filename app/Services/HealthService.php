@@ -90,36 +90,50 @@ final class HealthService
         }
     }
 
-    /** ตรวจว่าฐานข้อมูลอัปเดตถึงเวอร์ชัน 5 แล้วหรือยัง (นับตารางและคอลัมน์ที่แต่ละเวอร์ชันเพิ่มเข้ามา) */
+    /** ตรวจว่าฐานข้อมูลมีตารางและคอลัมน์ครบตาม database/schema.sql ล่าสุด */
     private static function schemaCheck(): array
     {
-        // ตารางของเวอร์ชัน 3 (รูปสภาพรถ) — ถ้าข้ามไฟล์นั้นมา update-v4.sql จะรันไม่ผ่านตั้งแต่บรรทัดแรก
-        $v3 = (int) Database::value("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()
-                                     AND TABLE_NAME IN ('inspections', 'inspection_photos')");
-        $v4 = (int) Database::value("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
-                                     AND ((TABLE_NAME = 'inspections' AND COLUMN_NAME = 'locked_at')
-                                       OR (TABLE_NAME = 'notifications' AND COLUMN_NAME = 'tpl_key')
-                                       OR (TABLE_NAME = 'inspection_photos' AND COLUMN_NAME = 'superseded_at'))");
-        $v5 = (int) Database::value("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE()
-                                     AND ((TABLE_NAME = 'bookings' AND COLUMN_NAME IN ('extra_breakdown', 'sign_token', 'delivery_km'))
-                                       OR (TABLE_NAME = 'signatures' AND COLUMN_NAME = 'voided_at')
-                                       OR (TABLE_NAME = 'customer_documents' AND COLUMN_NAME = 'mime'))");
+        $missing = [];
+        foreach (self::requiredTables() as $table) {
+            $found = Database::value(
+                'SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t',
+                [':t' => $table]
+            );
+            if (!$found) {
+                $missing[] = $table;
+            }
+        }
+        foreach (self::requiredColumns() as [$table, $column]) {
+            $found = Database::value(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t AND COLUMN_NAME = :c',
+                [':t' => $table, ':c' => $column]
+            );
+            if (!$found) {
+                $missing[] = $table . '.' . $column;
+            }
+        }
 
-        if ($v3 === 2 && $v4 === 3 && $v5 === 5) {
-            return self::row('โครงสร้างฐานข้อมูล', 'ok', 'เวอร์ชัน 5 (ล่าสุด)');
+        if (!$missing) {
+            return self::row('โครงสร้างฐานข้อมูล', 'ok', 'ตรงกับ schema.sql ล่าสุด');
         }
-        if ($v3 < 2) {
-            $version = '3';
-            $files   = 'update-v3.sql → update-v4.sql → update-v5.sql';
-        } elseif ($v4 < 3) {
-            $version = '4';
-            $files   = 'update-v4.sql → update-v5.sql';
-        } else {
-            $version = '5';
-            $files   = 'update-v5.sql';
-        }
-        return self::row('โครงสร้างฐานข้อมูล', 'fail', 'ยังไม่ได้อัปเดตเป็นเวอร์ชัน ' . $version,
-            'นำเข้าไฟล์ในโฟลเดอร์ database/ ตามลำดับ: ' . $files . ' ใน phpMyAdmin (ทุกไฟล์รันซ้ำได้ ไม่ลบข้อมูล)');
+        return self::row('โครงสร้างฐานข้อมูล', 'fail', 'ขาด: ' . implode(', ', $missing),
+            'นำเข้า database/schema.sql แล้วตามด้วย seed.sql ใน phpMyAdmin (schema.sql ลบตารางเดิมทั้งหมด — ถ้ามีข้อมูลจริงแล้ว ห้ามรัน ให้ติดต่อผู้พัฒนาเพื่อย้ายข้อมูล)');
+    }
+
+    /** ตารางที่ระบบต้องมี (นอกเหนือจากตารางหลักที่ถ้าขาดเว็บเปิดไม่ขึ้นอยู่แล้ว) */
+    private static function requiredTables(): array
+    {
+        return ['car_types', 'sequences', 'signatures', 'inspections', 'inspection_photos',
+                'customer_documents', 'line_events', 'ab_events', 'v_car_compliance'];
+    }
+
+    /** คอลัมน์ที่ระบบเรียกใช้ และเคยขาดเมื่อฐานข้อมูลเก่ากว่าโค้ด */
+    private static function requiredColumns(): array
+    {
+        return [['bookings', 'sign_token'], ['bookings', 'line_user_id'], ['bookings', 'delivery_km'],
+                ['bookings', 'extra_breakdown'], ['notifications', 'tpl_key'], ['car_blocks', 'created_by'],
+                ['cars', 'car_type'], ['inspection_photos', 'superseded_at']];
     }
 
     // ------------------------------------------------------------

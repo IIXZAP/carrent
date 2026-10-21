@@ -93,6 +93,7 @@ class CalendarController extends AdminController
                 'start_at' => date('Y-m-d H:i:s', $s),
                 'end_at'   => date('Y-m-d H:i:s', $e),
                 'reason'   => $r->str('reason', 250) ?: 'ปิดการใช้งาน',
+                'created_by' => $this->userId(),
             ]);
             ActivityLog::log('car_blocked', 'cars', $carId);
             $this->flash('ok', 'บันทึกช่วงปิดรถแล้ว');

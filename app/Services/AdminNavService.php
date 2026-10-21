@@ -29,6 +29,7 @@ final class AdminNavService
             ],
             'ข้อมูลหลัก' => [
                 ['admin/cars',        'cars',        '🚗', 'รถ', 0, false],
+                ['admin/car-types',   'car-types',   '🏷️', 'ประเภทรถ', 0, true],
                 ['admin/customers',   'customers',   '👤', 'ลูกค้า', 0, false],
                 ['admin/maintenance', 'maintenance', '🔧', 'งานประจำรถ', $cntMaint, false],
             ],

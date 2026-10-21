@@ -69,11 +69,10 @@ class MaintenanceController extends AdminController
             'vendor'    => $r->str('vendor', 150) ?: ($m['vendor'] ?? null),
         ]);
 
-        // อัปเดตวันหมดอายุในตารางรถ + สร้างงานรอบถัดไปอัตโนมัติ
-        $nextDue = $r->str('next_due');
-        $colMap  = ['insurance' => 'insurance_expire', 'act' => 'act_expire', 'tax' => 'tax_expire', 'service' => 'next_service_at'];
-        if ($nextDue !== '' && isset($colMap[$m['task_type']])) {
-            Car::updateById((int) $m['car_id'], [$colMap[$m['task_type']] => $nextDue]);
+        // สร้างงานรอบถัดไปอัตโนมัติ (วันหมดอายุของรถดูจากงานที่ค้างอยู่ จึงเปลี่ยนตามเอง)
+        $nextDue   = $r->str('next_due');
+        $repeating = ['insurance', 'act', 'tax', 'service'];
+        if ($nextDue !== '' && in_array($m['task_type'], $repeating, true)) {
             Maintenance::insert([
                 'car_id'    => (int) $m['car_id'],
                 'task_type' => $m['task_type'],

@@ -78,16 +78,11 @@ final class Booking extends Model
     // ------------------------------------------------------------
     // เลขที่การจอง
     // ------------------------------------------------------------
-    /** BK260919-001 — เลขล่าสุดของวันนี้ + 1 (ซ้ำได้ถ้าจองพร้อมกันพอดี ผู้เรียกลองใหม่เอง) */
+    /** BK260919-001 — เลขที่รันในวันนี้ จากตัวนับ sequences (จองพร้อมกันก็ไม่ซ้ำ) */
     public static function nextNumber(): string
     {
-        $prefix = 'BK' . date('ymd') . '-';
-        $max = Database::value(
-            'SELECT booking_no FROM bookings WHERE booking_no LIKE :p ORDER BY booking_no DESC LIMIT 1',
-            [':p' => $prefix . '%']
-        );
-        $seq = $max ? ((int) substr((string) $max, -3)) + 1 : 1;
-        return $prefix . str_pad((string) $seq, 3, '0', STR_PAD_LEFT);
+        $day = date('ymd');
+        return 'BK' . $day . '-' . str_pad((string) Sequence::next('booking', $day), 3, '0', STR_PAD_LEFT);
     }
 
     // ------------------------------------------------------------

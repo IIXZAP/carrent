@@ -17,8 +17,8 @@ $this->layout('layouts/admin', ['title' => $title, 'active' => 'cars']);
           <div class="field"><label>สี</label><input type="text" name="color" value="<?= e($v['color'] ?? '') ?>"></div>
           <div class="field"><label>ประเภท</label>
             <select name="car_type">
-              <?php foreach (['eco', 'sedan', 'suv', 'pickup', 'van'] as $t): ?>
-                <option value="<?= $t ?>" <?= selected(($v['car_type'] ?? '') === $t) ?>><?= e(car_type_label($t)) ?></option>
+              <?php foreach (car_type_options($v['car_type'] ?? null) as $t => $label): ?>
+                <option value="<?= e($t) ?>" <?= selected(($v['car_type'] ?? '') === $t) ?>><?= e($label) ?></option>
               <?php endforeach; ?>
             </select></div>
           <div class="field"><label>จำนวนที่นั่ง</label><input type="number" name="seats" value="<?= e($v['seats'] ?? 5) ?>" min="2" max="20"></div>

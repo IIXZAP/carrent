@@ -5,6 +5,7 @@ namespace App\Controllers\Admin;
 use App\Core\Response;
 use App\Models\ActivityLog;
 use App\Models\Car;
+use App\Models\CarType;
 use App\Models\Maintenance;
 use App\Services\UploadService;
 
@@ -12,15 +13,15 @@ use App\Services\UploadService;
 class CarController extends AdminController
 {
     private const STATUSES = ['available', 'maintenance', 'inactive'];
-    private const TYPES    = ['eco', 'sedan', 'suv', 'pickup', 'van'];
 
     public function index(): Response
     {
-        $cars = Car::all();
-        foreach ($cars as &$c) {
-            $c['active_booking'] = Car::activeRental((int) $c['id']);
+        $compliance = Car::complianceMap();
+        $cars = [];
+        foreach (Car::all() as $car) {
+            $car['active_booking'] = Car::activeRental((int) $car['id']);
+            $cars[] = $car + ($compliance[(int) $car['id']] ?? []);
         }
-        unset($c);
 
         return $this->view('admin/cars/index', [
             'title'    => 'จัดการรถ',
@@ -77,7 +78,7 @@ class CarController extends AdminController
 
     private function form(?array $car, array $old = []): Response
     {
-        $v = $old + ($car ?: []);
+        $v = $old + ($car ? $car + Car::compliance((int) $car['id']) : []);
         return $this->view('admin/cars/form', [
             'title'  => $car ? 'แก้ไขรถ ' . $car['plate'] : 'เพิ่มรถใหม่',
             'car'    => $car,
@@ -97,6 +98,7 @@ class CarController extends AdminController
             $data = $this->readCarFields();
             $this->checkRequired($data);
             $data = $data + $this->readFeatures() + $this->readImages($car);
+            $due  = $this->readDueDates();
 
             if ($id) {
                 Car::updateById($id, $data);
@@ -107,7 +109,7 @@ class CarController extends AdminController
                 ActivityLog::log('car_created', 'cars', $id, $data['plate']);
                 $this->flash('ok', 'เพิ่มรถเรียบร้อย');
             }
-            $this->createMaintenanceTasks($id, $data);
+            $this->saveDueDates($id, $data['plate'], $due);
             return $this->redirect('admin/cars');
         } catch (\Throwable $ex) {
             $this->flash('danger', $this->errorMessage($ex));
@@ -128,8 +130,7 @@ class CarController extends AdminController
     private function readCarFields(): array
     {
         $r = $this->request;
-        $carType = in_array($r->str('car_type'), self::TYPES, true) ? $r->str('car_type') : 'sedan';
-        $status  = in_array($r->str('status'), self::STATUSES, true) ? $r->str('status') : 'available';
+        $status = in_array($r->str('status'), self::STATUSES, true) ? $r->str('status') : 'available';
 
         return [
             'plate'            => $r->str('plate'),
@@ -138,7 +139,7 @@ class CarController extends AdminController
             'model'            => $r->str('model'),
             'year'             => $r->int('year') ?: null,
             'color'            => $r->str('color') ?: null,
-            'car_type'         => $carType,
+            'car_type'         => $r->str('car_type'),
             'seats'            => $r->int('seats', 5),
             'gear'             => $r->str('gear', 0, 'auto') === 'manual' ? 'manual' : 'auto',
             'fuel'             => $r->str('fuel', 0, 'เบนซิน'),
@@ -152,11 +153,6 @@ class CarController extends AdminController
             'status'           => $status,
             'mileage'          => $r->int('mileage'),
             'insurance_type'   => $r->str('insurance_type') ?: null,
-            'insurance_expire' => $r->str('insurance_expire') ?: null,
-            'act_expire'       => $r->str('act_expire') ?: null,
-            'tax_expire'       => $r->str('tax_expire') ?: null,
-            'next_service_km'  => $r->int('next_service_km') ?: null,
-            'next_service_at'  => $r->str('next_service_at') ?: null,
             'description'      => $r->str('description') ?: null,
             'sort_order'       => $r->int('sort_order'),
         ];
@@ -169,6 +165,12 @@ class CarController extends AdminController
         }
         if ($data['price_day'] <= 0) {
             throw new \RuntimeException('กรุณากรอกราคาเช่ารายวัน');
+        }
+        if (!CarType::exists($data['car_type'])) {
+            throw new \RuntimeException('กรุณาเลือกประเภทรถ');
+        }
+        if ($data['year'] !== null && ($data['year'] < 1990 || $data['year'] > 2100)) {
+            throw new \RuntimeException('ปีรถต้องเป็น ค.ศ. (1990–2100)');
         }
     }
 
@@ -209,25 +211,25 @@ class CarController extends AdminController
         return $result;
     }
 
-    /** สร้างงานประจำรถอัตโนมัติจากวันครบกำหนด (ประกัน / พ.ร.บ. / ภาษี / เช็กระยะ) */
-    private function createMaintenanceTasks(int $carId, array $data): void
+    /** วันหมดอายุที่กรอกในฟอร์ม (ว่าง = ไม่มีกำหนด) */
+    private function readDueDates(): array
     {
-        $tasks = [
-            ['insurance', 'ต่อประกันภัย', $data['insurance_expire']],
-            ['act', 'ต่อ พ.ร.บ.', $data['act_expire']],
-            ['tax', 'ต่อภาษีประจำปี', $data['tax_expire']],
-            ['service', 'เช็กระยะ/เปลี่ยนถ่ายน้ำมัน', $data['next_service_at']],
+        $r = $this->request;
+        return [
+            'insurance' => $r->str('insurance_expire') ?: null,
+            'act'       => $r->str('act_expire') ?: null,
+            'tax'       => $r->str('tax_expire') ?: null,
+            'service'   => $r->str('next_service_at') ?: null,
+            'service_km' => $r->int('next_service_km') ?: null,
         ];
-        foreach ($tasks as [$type, $title, $dueDate]) {
-            if ($dueDate && !Maintenance::pendingExists($carId, $type, $dueDate)) {
-                Maintenance::insert([
-                    'car_id'    => $carId,
-                    'task_type' => $type,
-                    'title'     => $title . ' ' . $data['plate'],
-                    'due_date'  => $dueDate,
-                    'status'    => 'pending',
-                ]);
-            }
-        }
+    }
+
+    /** บันทึกวันหมดอายุเป็นงานประจำรถ (ประกัน / พ.ร.บ. / ภาษี / เช็กระยะ) — เป็นแหล่งข้อมูลเดียวของวันหมดอายุ */
+    private function saveDueDates(int $carId, string $plate, array $due): void
+    {
+        Maintenance::setPending($carId, 'insurance', 'ต่อประกันภัย ' . $plate, $due['insurance'], null);
+        Maintenance::setPending($carId, 'act', 'ต่อ พ.ร.บ. ' . $plate, $due['act'], null);
+        Maintenance::setPending($carId, 'tax', 'ต่อภาษีประจำปี ' . $plate, $due['tax'], null);
+        Maintenance::setPending($carId, 'service', 'เช็กระยะ/เปลี่ยนถ่ายน้ำมัน ' . $plate, $due['service'], $due['service_km']);
     }
 }

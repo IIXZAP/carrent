@@ -45,6 +45,30 @@ final class Car extends Model
         return Database::all('SELECT id, brand, model, plate FROM cars ORDER BY sort_order');
     }
 
+    /**
+     * วันหมดอายุประกัน/พ.ร.บ./ภาษี และกำหนดเช็กระยะของรถทุกคัน (car_id => แถว)
+     * ข้อมูลมาจากงานประจำรถที่ยังค้างอยู่ (VIEW v_car_compliance)
+     */
+    public static function complianceMap(): array
+    {
+        $map = [];
+        foreach (Database::all('SELECT * FROM v_car_compliance') as $row) {
+            $map[(int) $row['car_id']] = $row;
+        }
+        return $map;
+    }
+
+    /** วันหมดอายุ/กำหนดเช็กระยะของรถคันเดียว (insurance_expire, act_expire, tax_expire, next_service_at, next_service_km) */
+    public static function compliance(int $id): array
+    {
+        $row = Database::one(
+            'SELECT insurance_expire, act_expire, tax_expire, next_service_at, next_service_km
+             FROM v_car_compliance WHERE car_id = :c',
+            [':c' => $id]
+        );
+        return $row ?: [];
+    }
+
     public static function activeCount(): int
     {
         return (int) Database::value("SELECT COUNT(*) FROM cars WHERE status <> 'inactive'");

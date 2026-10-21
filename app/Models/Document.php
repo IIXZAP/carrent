@@ -13,17 +13,13 @@ final class Document extends Model
     public const TYPES    = ['quotation', 'invoice', 'receipt', 'contract'];
     public const STATUSES = ['draft', 'sent', 'accepted', 'paid', 'void'];
 
-    /** QT2609-0001 — ตัวย่อชนิดเอกสาร + ปีเดือน + เลขรันในเดือน */
+    /** QT2609-0001 — ตัวย่อชนิดเอกสาร + ปีเดือน + เลขรันในเดือน (จากตัวนับ sequences) */
     public static function nextNumber(string $type): string
     {
-        $map    = ['quotation' => 'QT', 'invoice' => 'IV', 'receipt' => 'RC', 'contract' => 'CT'];
-        $prefix = ($map[$type] ?? 'DC') . date('ym') . '-';
-        $max = Database::value(
-            'SELECT doc_no FROM documents WHERE doc_no LIKE :p ORDER BY doc_no DESC LIMIT 1',
-            [':p' => $prefix . '%']
-        );
-        $seq = $max ? ((int) substr((string) $max, -4)) + 1 : 1;
-        return $prefix . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
+        $map   = ['quotation' => 'QT', 'invoice' => 'IV', 'receipt' => 'RC', 'contract' => 'CT'];
+        $month = date('ym');
+        $seq   = Sequence::next(isset($map[$type]) ? $type : 'document', $month);
+        return ($map[$type] ?? 'DC') . $month . '-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }
 
     /** รายการเอกสาร กรองตามชนิด ('' = ทั้งหมด) */
