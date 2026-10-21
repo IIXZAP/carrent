@@ -34,13 +34,16 @@ final class Customer extends Model
     }
 
     /**
-     * รหัสลูกค้าถัดไป CUS-00001
-     * นับเฉพาะรหัสรูปแบบ CUS-ตัวเลข — รหัสที่พิมพ์เอง/นำเข้ามา (เช่น CUS-A01) ไม่ทำให้เลขรันสะดุดจนออกเลขซ้ำ
+     * รหัสลูกค้าถัดไป CUS-00001 จากตัวนับ sequences
+     * ถ้าเลขนั้นถูกใช้แล้ว (เช่น พิมพ์รหัสเองหรือนำเข้ามา) ข้ามไปเลขถัดไป
      */
     public static function nextCode(): string
     {
-        $max = (int) Database::value("SELECT COALESCE(MAX(CAST(SUBSTRING(code, 5) AS UNSIGNED)), 0) FROM customers WHERE code REGEXP '^CUS-[0-9]+$'");
-        return 'CUS-' . str_pad((string) ($max + 1), 5, '0', STR_PAD_LEFT);
+        do {
+            $code = 'CUS-' . str_pad((string) Sequence::next('customer'), 5, '0', STR_PAD_LEFT);
+            $taken = Database::value('SELECT 1 FROM customers WHERE code = :c', [':c' => $code]);
+        } while ($taken);
+        return $code;
     }
 
     /** สร้างลูกค้าใหม่พร้อมรหัสอัตโนมัติ */

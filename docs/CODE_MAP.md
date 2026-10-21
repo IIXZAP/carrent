@@ -105,7 +105,8 @@
 | `DashboardController.php` | หน้าภาพรวม: งานวันนี้, รถเลยกำหนดคืน, รายได้ |
 | `BookingController.php` | รายการจอง, สร้าง/แก้ไข, หน้างาน 1 รายการ (ยืนยัน ส่งมอบ รับคืน ยกเลิก บันทึกเงิน) |
 | `PaymentController.php` | ตรวจสลิป: อนุมัติ/ปฏิเสธ |
-| `CarController.php` | เพิ่ม/แก้ไขรถ รูปรถ และสร้างงานประจำรถ (ประกัน, พ.ร.บ., ภาษี) |
+| `CarController.php` | เพิ่ม/แก้ไขรถ รูปรถ และบันทึกวันหมดอายุ (ประกัน, พ.ร.บ., ภาษี, เช็กระยะ) เป็นงานประจำรถ |
+| `CarTypeController.php` | จัดการประเภทรถ: เพิ่ม แก้ชื่อ/ลำดับ เปิด–ปิด ลบ (เฉพาะเจ้าของร้าน) |
 | `CustomerController.php` | ข้อมูลลูกค้า และเอกสาร (บัตร/ใบขับขี่) |
 | `CalendarController.php` | ปฏิทินรถ และบล็อกวันไม่ให้จอง |
 | `MaintenanceController.php` | งานประจำรถ: เสร็จ / ข้าม |
@@ -173,14 +174,16 @@
 | ไฟล์ | หน้าที่ |
 |---|---|
 | `Booking.php` | การจอง (ตารางใหญ่ที่สุด): ค้นหา ตรวจชน รายการค่าใช้จ่ายเพิ่ม ผูก LINE |
-| `Car.php` | รถ |
+| `Car.php` | รถ + สรุปวันหมดอายุต่อคันจาก VIEW `v_car_compliance` |
+| `CarType.php` | ประเภทรถ (eco, sedan, suv, ...) จัดการได้จากหลังบ้าน |
+| `Sequence.php` | ตัวนับเลขที่การจอง/ลูกค้า/เอกสาร (ไม่ซ้ำแม้ขอพร้อมกัน) |
 | `CarBlock.php` | ช่วงวันที่บล็อกไม่ให้จอง |
 | `Customer.php` | ลูกค้า + เอกสารลูกค้า |
 | `Payment.php` | รายการเงิน/สลิป |
 | `Document.php` | เอกสาร (ใบเสนอราคา/ใบแจ้งหนี้/ใบเสร็จ/สัญญา) |
 | `Inspection.php` | ใบตรวจสภาพรถ + รูป |
 | `Signature.php` | ลายเซ็น |
-| `Maintenance.php` | งานประจำรถ |
+| `Maintenance.php` | งานประจำรถ — แหล่งข้อมูลเดียวของวันหมดอายุประกัน/พ.ร.บ./ภาษี/เช็กระยะ |
 | `Notification.php` | คิวแจ้งเตือน |
 | `LineEvent.php` | เหตุการณ์ที่รับจาก LINE |
 | `ActivityLog.php` | บันทึกกิจกรรม และนับความพยายามล็อกอินผิด |
@@ -208,7 +211,7 @@
 | `layouts/` | โครงหน้า: `public` (ลูกค้า), `admin` (หลังบ้าน), `admin_print` (พิมพ์), `admin_login`, `focus` (หน้ามือถือสั้นๆ) |
 | `partials/` | ชิ้นส่วนใช้ซ้ำ: `car_card` การ์ดรถ, `quote_box` กล่องราคา, `searchbar`, `flash`, `pagination`, `contract_terms` ข้อสัญญา |
 | `public/` | หน้าลูกค้า: `home`, `cars`, `car` (รายละเอียด+ฟอร์มจอง), `booking_success`, `track`, `sign`, `liff`, `how_to`, `faq`, `contact`, `terms` |
-| `admin/` | หน้าหลังบ้าน แยกโฟลเดอร์ตามเรื่อง: `bookings`, `cars`, `customers`, `documents`, `maintenance`, `reports`, `settings`, `users`, `backups`, `health` + ไฟล์เดี่ยว `dashboard`, `calendar`, `payments`, `line`, `contract`, `inspection`, `monthly_report`, `ab_report`, `login` |
+| `admin/` | หน้าหลังบ้าน แยกโฟลเดอร์ตามเรื่อง: `bookings`, `cars`, `car_types`, `customers`, `documents`, `maintenance`, `reports`, `settings`, `users`, `backups`, `health` + ไฟล์เดี่ยว `dashboard`, `calendar`, `payments`, `line`, `contract`, `inspection`, `monthly_report`, `ab_report`, `login` |
 | `errors/404.php` | หน้าไม่พบ |
 | `install/` | หน้าตรวจการติดตั้ง |
 
@@ -218,9 +221,8 @@
 
 | ไฟล์/โฟลเดอร์ | หน้าที่ |
 |---|---|
-| `database/schema.sql` | โครงสร้างตารางตั้งต้น |
-| `database/update-v2..v5.sql`, `ab-events.sql`, `update-rules.sql` | อัปเดตโครงสร้าง/กฎตามเวอร์ชัน (รันตามลำดับใน README) |
-| `database/seed.sql` | ข้อมูลตัวอย่าง (รถ ผู้ใช้เริ่มต้น ตั้งค่า) |
+| `database/schema.sql` | โครงสร้างฐานข้อมูลทั้งหมดในไฟล์เดียว (FK, CHECK, index, VIEW) สำหรับติดตั้งใหม่ |
+| `database/seed.sql` | ข้อมูลตั้งต้น (ผู้ใช้เริ่มต้น ตั้งค่า รถตัวอย่าง 8 คัน งานประจำรถ) |
 | `database/reset-admin.sql` | ตั้งบัญชีผู้ดูแลใหม่ กรณีลืมรหัสผ่าน |
 | `assets/css/src/input.css` | ต้นฉบับ CSS (คอมโพเนนต์ เช่น `btn`, `panel`, `table`) |
 | `assets/css/app.css` | CSS ที่ build แล้ว (commit ไว้ โฮสต์ไม่ต้องมี Node) |

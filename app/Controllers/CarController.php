@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Response;
 use App\Models\Car;
+use App\Models\CarType;
 use App\Services\AbTrackService;
 use App\Services\AvailabilityService;
 use App\Services\PricingService;
@@ -12,7 +13,6 @@ use App\Services\PricingService;
 /** รายการรถ + ผลค้นหารถว่าง + รายละเอียดรถพร้อมฟอร์มจอง */
 class CarController extends Controller
 {
-    private const TYPES = ['eco', 'sedan', 'suv', 'pickup', 'van'];
 
     /** รายการรถ + ผลการค้นหารถว่างตามช่วงวัน */
     public function index(): Response
@@ -31,7 +31,7 @@ class CarController extends Controller
         }
 
         $type = $this->request->str('type');
-        $type = in_array($type, self::TYPES, true) ? $type : '';
+        $type = CarType::exists($type) ? $type : '';
 
         $searching = $pickup !== '' && $ret !== '';
         $error = null;

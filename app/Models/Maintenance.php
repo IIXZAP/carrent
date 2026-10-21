@@ -26,6 +26,45 @@ final class Maintenance extends Model
         );
     }
 
+    /**
+     * ตั้งกำหนดของงานประเภทหนึ่งให้รถคันหนึ่ง (ใช้กับวันหมดอายุที่กรอกในฟอร์มรถ)
+     *   - มีงานค้างอยู่แล้ว  → แก้วันที่/เลขไมล์ของงานนั้น (ถ้าวันที่เปลี่ยน ให้แจ้งเตือนใหม่)
+     *   - ยังไม่มีงานค้าง   → สร้างงานใหม่
+     *   - ไม่กรอกอะไรเลย    → ข้ามงานที่ค้างอยู่ของประเภทนี้
+     */
+    public static function setPending(int $carId, string $type, string $title, ?string $dueDate, ?int $dueMileage): void
+    {
+        if ($dueDate === null && $dueMileage === null) {
+            Database::exec(
+                "UPDATE maintenances SET status = 'skipped' WHERE car_id = :c AND task_type = :t AND status = 'pending'",
+                [':c' => $carId, ':t' => $type]
+            );
+            return;
+        }
+
+        $existingId = Database::value(
+            "SELECT id FROM maintenances WHERE car_id = :c AND task_type = :t AND status = 'pending'
+             ORDER BY due_date IS NULL, due_date, id LIMIT 1",
+            [':c' => $carId, ':t' => $type]
+        );
+        if ($existingId) {
+            Database::exec(
+                'UPDATE maintenances SET notified_at = IF(due_date <=> :d1, notified_at, NULL),
+                        due_date = :d2, due_mileage = :m WHERE id = :id',
+                [':d1' => $dueDate, ':d2' => $dueDate, ':m' => $dueMileage, ':id' => (int) $existingId]
+            );
+            return;
+        }
+        self::insert([
+            'car_id'      => $carId,
+            'task_type'   => $type,
+            'title'       => $title,
+            'due_date'    => $dueDate,
+            'due_mileage' => $dueMileage,
+            'status'      => 'pending',
+        ]);
+    }
+
     /** งานที่ค้างและใกล้ครบกำหนดภายในวันที่ $until */
     public static function dueUntil(string $until, int $limit = 10): array
     {
