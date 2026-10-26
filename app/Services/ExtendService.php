@@ -109,6 +109,8 @@ final class ExtendService
             'vat'          => 0.0,
             'charge'       => 0.0,
             'new_total'    => (float) $booking['grand_total'],
+            'new_return'   => (string) $booking['return_at'],
+            'warning'      => null,
         ];
     }
 
@@ -150,7 +152,13 @@ final class ExtendService
         try {
             // ล็อกแถวของรถแล้วตรวจซ้ำ กันลูกค้ารายอื่นจองช่วงเดียวกันเข้ามาพร้อมกันพอดี
             Car::lock((int) $booking['car_id']);
-            $again = self::quote(Booking::find($id), $car, $quote['new_return']);
+            Booking::lock($id);   // ล็อกแถวการจองด้วย แล้วอ่านข้อมูลล่าสุดมาบวกเพิ่ม (ไม่ใช้ค่าที่อ่านไว้ก่อนหน้า)
+
+            $fresh = Booking::find($id);
+            if (!$fresh || $fresh['return_at'] !== $booking['return_at'] || $fresh['status'] !== $booking['status']) {
+                throw new \RuntimeException('การจองนี้เพิ่งถูกแก้ไขจากที่อื่น กรุณาโหลดหน้าใหม่แล้วลองอีกครั้ง');
+            }
+            $again = self::quote($fresh, $car, $quote['new_return']);
             if (!$again['ok']) {
                 throw new \RuntimeException($again['error']);
             }
@@ -158,13 +166,13 @@ final class ExtendService
             Booking::updateById($id, [
                 'return_at'      => $quote['new_return'],
                 'rental_days'    => $quote['days_new'],
-                'rental_amount'  => round((float) $booking['rental_amount'] + $quote['rental_delta'], 2),
-                'addon_amount'   => round((float) $booking['addon_amount'] + $quote['addon_delta'], 2),
-                'discount'       => round((float) $booking['discount'] + max(0, $quote['delta'] - $net), 2),
-                'subtotal'       => round((float) $booking['subtotal'] + $net, 2),
-                'vat_amount'     => round((float) $booking['vat_amount'] + $vat, 2),
-                'grand_total'    => round((float) $booking['grand_total'] + $charge, 2),
-                'rate_breakdown' => json_encode(self::breakdownWithExtension($booking, $quote), JSON_UNESCAPED_UNICODE),
+                'rental_amount'  => round((float) $fresh['rental_amount'] + $quote['rental_delta'], 2),
+                'addon_amount'   => round((float) $fresh['addon_amount'] + $quote['addon_delta'], 2),
+                'discount'       => round((float) $fresh['discount'] + max(0, $quote['delta'] - $net), 2),
+                'subtotal'       => round((float) $fresh['subtotal'] + $net, 2),
+                'vat_amount'     => round((float) $fresh['vat_amount'] + $vat, 2),
+                'grand_total'    => round((float) $fresh['grand_total'] + $charge, 2),
+                'rate_breakdown' => json_encode(self::breakdownWithExtension($fresh, $quote), JSON_UNESCAPED_UNICODE),
             ]);
             Database::commit();
         } catch (\Throwable $e) {

@@ -48,6 +48,16 @@ final class ActivityLog extends Model
         Database::exec("DELETE FROM activity_logs WHERE action = 'login_failed' AND detail = :e", [':e' => $email]);
     }
 
+    /** จำนวนครั้งที่ค้นหาการจองที่หน้า /track ไม่พบใน 15 นาที แยกตาม IP (กันไล่เดาเลขที่จอง + เบอร์โทร) */
+    public static function trackFailsByIp(string $ip): int
+    {
+        return (int) Database::value(
+            "SELECT COUNT(*) FROM activity_logs
+             WHERE action = 'track_fail' AND ip = :ip AND created_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)",
+            [':ip' => $ip]
+        );
+    }
+
     /** จำนวนครั้งที่ผูกบัญชี LINE ผิดใน 15 นาที แยกตามผู้ใช้ LINE */
     public static function liffFailsByUser(string $uid): int
     {

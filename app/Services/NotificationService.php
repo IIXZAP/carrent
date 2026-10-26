@@ -21,6 +21,11 @@ final class NotificationService
     /** ส่งอีเมลผ่าน SMTP (ไม่ต้องลง PHPMailer — ใช้ socket ตรง) @return array{0:bool,1:?string} */
     public static function smtpSend(string $to, string $subject, string $htmlBody): array
     {
+        // ต้องเป็นที่อยู่อีเมลล้วนๆ (ปฏิเสธขึ้นบรรทัดใหม่ที่อาจใช้ฉีดหัวจดหมายเพิ่ม)
+        if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+            return [false, 'อีเมลปลายทางไม่ถูกต้อง'];
+        }
+
         // ไม่ได้ตั้งค่า SMTP → ใช้ mail() ของ cPanel
         if (!setting('smtp_host')) {
             return self::sendWithMail($to, $subject, $htmlBody);

@@ -88,6 +88,11 @@ class CalendarController extends AdminController
             if ($e <= $s) {
                 throw new \RuntimeException('วันสิ้นสุดต้องหลังวันเริ่ม');
             }
+            // ปิดรถทับช่วงที่มีการจองอยู่แล้วไม่ได้ — ต้องย้ายหรือยกเลิกการจองนั้นก่อน
+            $booked = Booking::conflictCount($carId, date('Y-m-d H:i:s', $s), date('Y-m-d H:i:s', $e), null);
+            if ($booked > 0) {
+                throw new \RuntimeException('ช่วงเวลานี้มีการจองรถคันนี้อยู่ ' . $booked . ' รายการ — จัดการการจองให้เรียบร้อยก่อนจึงจะปิดรถได้');
+            }
             CarBlock::insert([
                 'car_id'   => $carId,
                 'start_at' => date('Y-m-d H:i:s', $s),
@@ -105,7 +110,9 @@ class CalendarController extends AdminController
 
     public function unblock(): Response
     {
-        CarBlock::deleteById($this->request->int('block_id'));
+        $blockId = $this->request->int('block_id');
+        CarBlock::deleteById($blockId);
+        ActivityLog::log('car_unblocked', 'car_blocks', $blockId);
         $this->flash('ok', 'ยกเลิกช่วงปิดรถแล้ว');
         return $this->redirect('admin/calendar?m=' . $this->request->str('m', 0, date('Y-m')));
     }

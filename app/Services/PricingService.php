@@ -20,13 +20,22 @@ namespace App\Services;
  */
 final class PricingService
 {
-    public const GRACE_HOURS   = 2;   // ผ่อนผันคืนช้า (ชั่วโมง)
+    public const GRACE_HOURS   = 2;   // ผ่อนผันคืนช้า (ชั่วโมง) ค่าตั้งต้น — ใช้จริงผ่าน graceHours()
+
+    /** ราคาต่อวันของบริการเสริมที่ราคาคงที่ (ใช้ทั้งหน้าเลือกบริการและการคิดเงิน) */
+    private const ADDON_PRICES = ['child_seat' => 150.0, 'insurance_plus' => 300.0, 'gps' => 100.0];
     public const DAYS_IN_WEEK  = 7;
     public const DAYS_IN_MONTH = 30;
 
     // ------------------------------------------------------------
     // ค่าเช่ารถ
     // ------------------------------------------------------------
+
+    /** ผ่อนผันคืนช้า (ชั่วโมง) — ค่าเดียวกับที่ใช้คิดค่าปรับคืนช้า (ตั้งที่ หลังบ้าน → ตั้งค่า) */
+    public static function graceHours(): int
+    {
+        return max(0, (int) setting('late_grace_hours', (string) self::GRACE_HOURS));
+    }
 
     /** นับจำนวนวันเช่าจากช่วงเวลา */
     public static function rentalDays(string $pickup, string $return): int
@@ -38,7 +47,7 @@ final class PricingService
         }
 
         $hours = ($end - $start) / 3600;
-        $days  = (int) ceil(max(0, $hours - self::GRACE_HOURS) / 24);
+        $days  = (int) ceil(max(0, $hours - self::graceHours()) / 24);
         return max(1, $days);
     }
 
@@ -121,9 +130,9 @@ final class PricingService
             'delivery'        => ['ส่งรถถึงที่', -1.0, 'ครั้ง'],
             'return_delivery' => ['รับรถคืนถึงที่', -1.0, 'ครั้ง'],
             'driver'          => ['คนขับรถ', (float) $car['driver_fee_day'], 'วัน'],
-            'child_seat'      => ['คาร์ซีทเด็ก', 150.0, 'วัน'],
-            'insurance_plus'  => ['ประกันเสริม ลดค่าเสียหายส่วนแรก', 300.0, 'วัน'],
-            'gps'             => ['GPS / Pocket WiFi', 100.0, 'วัน'],
+            'child_seat'      => ['คาร์ซีทเด็ก', self::ADDON_PRICES['child_seat'], 'วัน'],
+            'insurance_plus'  => ['ประกันเสริม ลดค่าเสียหายส่วนแรก', self::ADDON_PRICES['insurance_plus'], 'วัน'],
+            'gps'             => ['GPS / Pocket WiFi', self::ADDON_PRICES['gps'], 'วัน'],
         ];
     }
 
@@ -142,9 +151,9 @@ final class PricingService
             'delivery'        => ['ส่งรถถึงที่', $deliveryFee, false, true],
             'return_delivery' => ['รับรถคืนถึงที่', $deliveryFee, false, true],
             'driver'          => ['คนขับรถ', (float) $car['driver_fee_day'], true, false],
-            'child_seat'      => ['คาร์ซีทเด็ก', 150.0, true, false],
-            'insurance_plus'  => ['ประกันเสริม ลดค่าเสียหายส่วนแรก', 300.0, true, false],
-            'gps'             => ['GPS / Pocket WiFi', 100.0, true, false],
+            'child_seat'      => ['คาร์ซีทเด็ก', self::ADDON_PRICES['child_seat'], true, false],
+            'insurance_plus'  => ['ประกันเสริม ลดค่าเสียหายส่วนแรก', self::ADDON_PRICES['insurance_plus'], true, false],
+            'gps'             => ['GPS / Pocket WiFi', self::ADDON_PRICES['gps'], true, false],
         ];
 
         $lines = [];
@@ -265,9 +274,10 @@ final class PricingService
     public static function emptyQuote(): array
     {
         return [
-            'days' => 0, 'rental_lines' => [], 'addon_lines' => [], 'discount' => 0, 'subtotal' => 0,
-            'vat_rate' => 0, 'vat_amount' => 0, 'grand_total' => 0, 'deposit_amount' => 0,
-            'security_deposit' => 0, 'avg_day' => 0,
+            'days' => 0, 'rental_lines' => [], 'rental_amount' => 0, 'addon_lines' => [], 'addon_amount' => 0,
+            'discount' => 0, 'subtotal' => 0, 'vat_rate' => 0, 'vat_amount' => 0, 'grand_total' => 0,
+            'deposit_amount' => 0, 'security_deposit' => 0, 'balance_on_pickup' => 0, 'due_on_pickup' => 0,
+            'avg_day' => 0, 'delivery_km' => 0,
         ];
     }
 }

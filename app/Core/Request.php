@@ -39,7 +39,8 @@ final class Request
         $uri  = (string) ($_SERVER['REQUEST_URI'] ?? '/');
         $path = (string) parse_url($uri, PHP_URL_PATH);
         $path = rawurldecode($path);
-        if (BASE_URL !== '' && str_starts_with($path, BASE_URL)) {
+        // ตัด BASE_URL เฉพาะเมื่อตรงเป๊ะหรือตามด้วย / (BASE_URL '/car' ต้องไม่ตัด '/carrent')
+        if (BASE_URL !== '' && ($path === BASE_URL || str_starts_with($path, BASE_URL . '/'))) {
             $path = substr($path, strlen(BASE_URL));
         }
         // ถ้าเปิดผ่าน /index.php/xxx ให้ถือเป็น /xxx

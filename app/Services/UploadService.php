@@ -81,7 +81,8 @@ final class UploadService
             throw new \RuntimeException('รองรับเฉพาะไฟล์ JPG, PNG, WEBP และ PDF');
         }
 
-        $dir = rtrim(UPLOAD_DIR, '/') . '/' . trim($subdir, '/');
+        $subdir = trim(preg_replace('/[^A-Za-z0-9_\/-]/', '', $subdir), '/');   // ตัดอักขระแปลก (รวมถึง ..) กันออกนอกโฟลเดอร์
+        $dir = rtrim(UPLOAD_DIR, '/') . '/' . $subdir;
         if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
             throw new \RuntimeException('สร้างโฟลเดอร์อัปโหลดไม่สำเร็จ');
         }
@@ -89,7 +90,7 @@ final class UploadService
         if (!is_uploaded_file($file['tmp_name']) || !move_uploaded_file($file['tmp_name'], $dir . '/' . $name)) {
             throw new \RuntimeException('บันทึกไฟล์ไม่สำเร็จ');
         }
-        return trim($subdir, '/') . '/' . $name;
+        return $subdir . '/' . $name;
     }
 
     /**

@@ -15,7 +15,7 @@ final class LateReturnService
     public static function policy(): array
     {
         return [
-            'grace'    => max(0, (int) setting('late_grace_hours', (string) PricingService::GRACE_HOURS)),
+            'grace'    => PricingService::graceHours(),
             'full_day' => max(1, (int) setting('late_full_day_hours', '6')),
             'per_hour' => max(0, (float) setting('late_fee_per_hour', '200')),
         ];

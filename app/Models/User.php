@@ -28,7 +28,10 @@ final class User extends Model
 
     public static function all(): array
     {
-        return Database::all('SELECT * FROM users ORDER BY role, name');
+        return Database::all(
+            'SELECT id, name, email, role, phone, is_active, last_login_at, created_at, updated_at
+             FROM users ORDER BY role, name'
+        );   // ไม่ดึง password_hash มาไว้ในหน้าที่ไม่ต้องใช้
     }
 
     public static function emailTaken(string $email, int $exceptId = 0): bool

@@ -394,7 +394,7 @@ final class Booking extends Model
             return (string) $row['sign_token'];
         }
         $t = bin2hex(random_bytes(16));
-        Database::exec('UPDATE bookings SET sign_token = :t WHERE id = :i AND (sign_token IS NULL OR sign_token = "")', [':t' => $t, ':i' => $id]);
+        Database::exec('UPDATE bookings SET sign_token = :t WHERE id = :i AND (sign_token IS NULL OR sign_token = \'\')', [':t' => $t, ':i' => $id]);
         return (string) Database::value('SELECT sign_token FROM bookings WHERE id = :i', [':i' => $id]);
     }
 

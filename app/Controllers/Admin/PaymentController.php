@@ -29,6 +29,8 @@ class PaymentController extends AdminController
     {
         if (PaymentService::approve($this->request->int('payment_id'), (int) $this->userId())) {
             $this->flash('ok', 'อนุมัติการชำระเงินแล้ว');
+        } else {
+            $this->flash('warn', 'รายการนี้ถูกอนุมัติหรือปฏิเสธไปแล้ว (หรือไม่พบรายการ) กรุณาตรวจสถานะล่าสุด');
         }
         return $this->redirect($this->backPath());
     }
@@ -38,6 +40,8 @@ class PaymentController extends AdminController
         $reason = $this->request->str('reason', 250);
         if (PaymentService::reject($this->request->int('payment_id'), (int) $this->userId(), $reason)) {
             $this->flash('warn', 'ปฏิเสธสลิปแล้ว');
+        } else {
+            $this->flash('warn', 'รายการนี้ถูกอนุมัติหรือปฏิเสธไปแล้ว (หรือไม่พบรายการ) กรุณาตรวจสถานะล่าสุด');
         }
         return $this->redirect($this->backPath());
     }

@@ -53,6 +53,12 @@ final class Route
         return $this;
     }
 
+    /** @return string[] method ที่เส้นทางนี้รับ */
+    public function methods(): array
+    {
+        return $this->methods;
+    }
+
     public function needsCsrf(): bool
     {
         return $this->csrf;

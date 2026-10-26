@@ -70,7 +70,7 @@ final class Router
     {
         $path   = $request->path();
         $method = $request->method();
-        $allowedElsewhere = false;
+        $allowedMethods = [];   // method ที่รับได้ของ URL นี้ (ไว้ตอบ 405 พร้อมส่วนหัว Allow)
 
         foreach ($this->routes as $route) {
             $params = $route->match($path);
@@ -78,14 +78,14 @@ final class Router
                 continue;
             }
             if (!$route->allows($method)) {
-                $allowedElsewhere = true;
+                $allowedMethods = array_merge($allowedMethods, $route->methods());
                 continue;
             }
             return $this->run($route, $params, $request);
         }
 
-        if ($allowedElsewhere) {
-            return Response::text('Method Not Allowed', 405);
+        if ($allowedMethods) {
+            return Response::text('Method Not Allowed', 405)->header('Allow', implode(', ', array_unique($allowedMethods)));
         }
         return (new \App\Controllers\ErrorController($request))->notFound();
     }

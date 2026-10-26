@@ -66,10 +66,13 @@ final class CronService
                 $when = 'อีก ' . $left . ' วัน';
             }
             $msg .= sprintf("• %s (%s) — %s %s\n", $task['title'], $task['plate'], $when, thai_date($task['due_date']));
-            Maintenance::markNotified((int) $task['id']);
         }
         NotificationService::queue('line', setting('line_admin_user_id'), $msg, null, 'maintenances', null);
         NotificationService::queue('email', setting('notify_admin_email'), $msg, 'งานประจำรถที่ต้องจัดการ');
+        // ทำเครื่องหมาย "เตือนแล้ว" หลังเข้าคิวสำเร็จ (ถ้าเข้าคิวพลาดก่อนหน้านี้ รอบถัดไปจะเตือนใหม่)
+        foreach ($tasks as $task) {
+            Maintenance::markNotified((int) $task['id']);
+        }
         $lines[] = 'maintenance reminders: ' . count($tasks);
     }
 

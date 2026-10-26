@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\Database;
 use App\Core\Request;
 use App\Models\ActivityLog;
 use App\Models\Booking;
@@ -26,16 +27,30 @@ final class AdminBookingService
         self::checkNotEditedElsewhere($existing, $request);
 
         $contact = self::contactColumns($existing, $request);
-        $data    = $contact;
 
-        if (!BookingService::isLocked($existing)) {
-            $data += self::rentalColumns($existing, $request);
+        // ส่งมอบรถแล้ว: แก้ได้เฉพาะข้อมูลผู้เช่า จุดรับ–คืน และหมายเหตุ ไม่กระทบการจองรถ
+        if (BookingService::isLocked($existing)) {
+            return self::update($existing, $contact);
         }
+        return self::saveWithRental($existing, $request, $contact);
+    }
 
-        if ($existing) {
-            return self::update($existing, $data);
+    /**
+     * บันทึกการจองที่มีรถและช่วงเวลา — ตรวจรถว่างกับบันทึกต้องอยู่ใน transaction เดียวกัน
+     * (rentalColumns ล็อกแถวรถไว้ก่อนตรวจ จึงกันแอดมินสองคนหรือลูกค้าเว็บจองรถคันเดียวกันช่วงเดียวกันพร้อมกัน)
+     */
+    private static function saveWithRental(?array $existing, Request $request, array $contact): array
+    {
+        Database::begin();
+        try {
+            $data = $contact + self::rentalColumns($existing, $request);
+            $result = $existing ? self::update($existing, $data) : self::create($data, $request);
+            Database::commit();
+            return $result;
+        } catch (\Throwable $e) {
+            Database::rollBack();
+            throw $e;
         }
-        return self::create($data, $request);
     }
 
     // ------------------------------------------------------------
@@ -106,6 +121,10 @@ final class AdminBookingService
     private static function rentalColumns(?array $existing, Request $request): array
     {
         $existingId = $existing ? (int) $existing['id'] : 0;
+
+        // ล็อกคิวของรถคันนี้ก่อนอ่านข้อมูลใดๆ ใน transaction — ถ้าอ่านก่อนล็อก MySQL จะใช้ภาพข้อมูลเก่า
+        // แล้วตรวจรถว่างพลาด (ไม่เห็นการจองที่เพิ่ง commit ระหว่างรอคิว)
+        Car::lock($request->int('car_id'));
 
         $car = Car::find($request->int('car_id'));
         if (!$car) {

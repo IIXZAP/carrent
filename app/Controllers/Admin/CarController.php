@@ -2,6 +2,7 @@
 
 namespace App\Controllers\Admin;
 
+use App\Core\Database;
 use App\Core\Response;
 use App\Models\ActivityLog;
 use App\Models\Car;
@@ -35,7 +36,9 @@ class CarController extends AdminController
     {
         $carId  = $this->request->int('car_id');
         $status = $this->request->str('status');
-        $status = in_array($status, self::STATUSES, true) ? $status : 'available';
+        if (!in_array($status, self::STATUSES, true)) {
+            return $this->done('admin/cars', 'danger', 'สถานะรถไม่ถูกต้อง');   // ไม่เดาเป็น "ว่าง" เองเมื่อค่าผิดปกติ
+        }
 
         // รถที่ยังมีงานค้าง ห้ามปิดใช้งาน — ไม่งั้นการจองเหล่านั้นจะหายจากรายงาน และแก้ไข/เช่าต่อไม่ได้
         $open = $status === 'inactive' ? Car::openBookingCount($carId) : 0;
@@ -100,16 +103,23 @@ class CarController extends AdminController
             $data = $data + $this->readFeatures() + $this->readImages($car);
             $due  = $this->readDueDates();
 
-            if ($id) {
-                Car::updateById($id, $data);
-                ActivityLog::log('car_updated', 'cars', $id, $data['plate']);
-                $this->flash('ok', 'บันทึกข้อมูลรถแล้ว');
-            } else {
-                $id = Car::insert($data);
-                ActivityLog::log('car_created', 'cars', $id, $data['plate']);
-                $this->flash('ok', 'เพิ่มรถเรียบร้อย');
+            // ข้อมูลรถกับวันหมดอายุบันทึกพร้อมกัน ถ้าอย่างใดพลาดจะย้อนกลับทั้งหมด (ไม่ค้างครึ่งๆ กลางๆ)
+            $isNew = $id === 0;
+            Database::begin();
+            try {
+                if ($isNew) {
+                    $id = Car::insert($data);
+                } else {
+                    Car::updateById($id, $data);
+                }
+                $this->saveDueDates($id, $data['plate'], $due);
+                Database::commit();
+            } catch (\Throwable $inner) {
+                Database::rollBack();
+                throw $inner;
             }
-            $this->saveDueDates($id, $data['plate'], $due);
+            ActivityLog::log($isNew ? 'car_created' : 'car_updated', 'cars', $id, $data['plate']);
+            $this->flash('ok', $isNew ? 'เพิ่มรถเรียบร้อย' : 'บันทึกข้อมูลรถแล้ว');
             return $this->redirect('admin/cars');
         } catch (\Throwable $ex) {
             $this->flash('danger', $this->errorMessage($ex));
