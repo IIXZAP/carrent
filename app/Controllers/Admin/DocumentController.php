@@ -32,7 +32,10 @@ class DocumentController extends AdminController
     public function status(): Response
     {
         $st = $this->request->str('status');
-        Document::setStatus($this->request->int('id'), in_array($st, Document::STATUSES, true) ? $st : 'draft');
+        $id = $this->request->int('id');
+        $st = in_array($st, Document::STATUSES, true) ? $st : 'draft';
+        Document::setStatus($id, $st);
+        ActivityLog::log('document_status', 'documents', $id, $st);
         return $this->done('admin/documents', 'ok', 'อัปเดตสถานะเอกสารแล้ว');
     }
 

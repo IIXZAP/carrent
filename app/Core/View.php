@@ -36,7 +36,7 @@ final class View
             $layoutData = $this->layoutData;
             $this->layoutName = null;
             $this->layoutData = [];
-            $content = $this->capture($layout, $layoutData + $this->shared + ['content' => $content]);
+            $content = $this->capture($layout, ['content' => $content] + $layoutData + $this->shared);
         }
         return $content;
     }

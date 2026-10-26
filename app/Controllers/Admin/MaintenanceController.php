@@ -38,7 +38,10 @@ class MaintenanceController extends AdminController
 
     public function add(): Response
     {
-        $r   = $this->request;
+        $r = $this->request;
+        if (!Car::find($r->int('car_id'))) {
+            return $this->done('admin/maintenance', 'danger', 'กรุณาเลือกรถที่ต้องการเพิ่มงาน');
+        }
         $mid = Maintenance::insert([
             'car_id'      => $r->int('car_id'),
             'task_type'   => in_array($r->str('task_type'), self::TYPES, true) ? $r->str('task_type') : 'other',
@@ -87,7 +90,9 @@ class MaintenanceController extends AdminController
 
     public function skip(): Response
     {
-        Maintenance::skip($this->request->int('id'));
+        $id = $this->request->int('id');
+        Maintenance::skip($id);
+        ActivityLog::log('maintenance_skipped', 'maintenances', $id);
         return $this->done('admin/maintenance', 'warn', 'ข้ามงานนี้แล้ว');
     }
 }

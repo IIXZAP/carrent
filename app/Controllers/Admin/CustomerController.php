@@ -2,6 +2,7 @@
 
 namespace App\Controllers\Admin;
 
+use App\Core\Database;
 use App\Core\Response;
 use App\Models\ActivityLog;
 use App\Models\Customer;
@@ -129,18 +130,17 @@ class CustomerController extends AdminController
             $kinds   = PrivateFileService::customerDocKinds();
             $docKind = isset($kinds[$r->str('doc_kind')]) ? $r->str('doc_kind') : 'id_card';
 
-            if ($id) {
-                Customer::updateById($id, $data);
-                ActivityLog::log('customer_updated', 'customers', $id);
-                $this->flash('ok', 'บันทึกข้อมูลลูกค้าแล้ว');
-            } else {
-                $data['code'] = Customer::nextCode();
-                $id = Customer::insert($data);
-                ActivityLog::log('customer_created', 'customers', $id);
-                $this->flash('ok', 'เพิ่มลูกค้า ' . $data['code'] . ' แล้ว');
-            }
-            if ($doc) {
-                $did = Customer::addDocument([
+            // ข้อมูลลูกค้ากับเอกสารแนบบันทึกพร้อมกัน ถ้าอย่างใดพลาดจะย้อนกลับทั้งหมด
+            $isNew = $id === 0;
+            Database::begin();
+            try {
+                if ($isNew) {
+                    $data['code'] = Customer::nextCode();
+                    $id = Customer::insert($data);
+                } else {
+                    Customer::updateById($id, $data);
+                }
+                $did = $doc ? Customer::addDocument([
                     'customer_id' => $id,
                     'doc_kind'    => $docKind,
                     'file_path'   => $doc['path'],
@@ -148,7 +148,16 @@ class CustomerController extends AdminController
                     'file_size'   => $doc['size'],
                     'note'        => $r->str('doc_note', 200) ?: null,
                     'uploaded_by' => $this->userId(),
-                ]);
+                ]) : 0;
+                Database::commit();
+            } catch (\Throwable $inner) {
+                Database::rollBack();
+                throw $inner;
+            }
+
+            ActivityLog::log($isNew ? 'customer_created' : 'customer_updated', 'customers', $id);
+            $this->flash('ok', $isNew ? 'เพิ่มลูกค้า ' . $data['code'] . ' แล้ว' : 'บันทึกข้อมูลลูกค้าแล้ว');
+            if ($doc) {
                 ActivityLog::log('document_uploaded', 'customer_documents', $did, ['customer_id' => $id, 'kind' => $docKind]);
                 $this->flash('ok', 'แนบ' . $kinds[$docKind] . 'แล้ว (เก็บในที่เก็บแบบปิด)');
             }

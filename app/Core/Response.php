@@ -45,6 +45,9 @@ final class Response
     /** ส่งไฟล์บนดิสก์ออกไปตรงๆ (ไฟล์สำรอง เอกสารลูกค้า) */
     public static function file(string $fullPath, array $headers = [], int $status = 200): self
     {
+        if (!is_file($fullPath)) {
+            return self::text('ไม่พบไฟล์', 404);
+        }
         $headers['Content-Length'] = (string) filesize($fullPath);
         return new self('', $status, $headers, $fullPath);
     }

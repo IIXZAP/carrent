@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Controller;
 use App\Core\Response;
+use App\Models\ActivityLog;
 use App\Models\Booking;
 use App\Models\Payment;
 use App\Services\BookingService;
@@ -19,10 +20,17 @@ class TrackController extends Controller
         if ($no === '' || $phone === '') {
             return [null, null];
         }
+        // กันไล่เดา: ค้นหาไม่พบเกิน 20 ครั้งใน 15 นาทีจาก IP เดียวกัน ให้พักก่อน
+        if (ActivityLog::trackFailsByIp($this->request->ip()) >= 20) {
+            return [null, 'ค้นหาผิดหลายครั้งเกินไป กรุณารอ 15 นาที หรือติดต่อร้าน ' . setting('phone')];
+        }
         $b = Booking::findByNoWithCar($no);
         // เทียบเบอร์แบบตัวเลขล้วนทั้งสองฝั่ง (รองรับ +66 / ขีด / เว้นวรรค) และต้องมีอย่างน้อย 9 หลัก
         if ($b && !phone_match($b['contact_phone'], $phone)) {
             $b = null;
+        }
+        if (!$b) {
+            ActivityLog::log('track_fail', null, null, $no);
         }
         return [$b, $b ? null : 'ไม่พบการจองที่ตรงกับเลขที่และเบอร์โทรศัพท์นี้'];
     }

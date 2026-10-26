@@ -144,8 +144,8 @@ final class WebBookingService
     // ------------------------------------------------------------
 
     /**
-     * เลขที่จองออกจาก "เลขล่าสุด + 1" ถ้ามีสองคนจองพร้อมกันพอดีจะได้เลขซ้ำ
-     * จึงลองบันทึกใหม่ให้เองสูงสุด 3 รอบ
+     * เลขที่จองมาจากตัวนับ sequences จึงปกติไม่ซ้ำ แต่เผื่อไว้กรณีมีเลขเดิมตกค้าง (เช่น นำเข้าข้อมูลเก่า)
+     * ถ้าบันทึกชนกุญแจ uq_bookings_no จะลองใหม่ให้เองสูงสุด 3 รอบ (ข้อผิดพลาดอื่นไม่ลองซ้ำ)
      */
     private static function saveWithRetry(int $carId, array $in, ?array $customer, string $pickup, string $return, array $quote): int
     {
@@ -155,7 +155,8 @@ final class WebBookingService
             try {
                 return self::saveOnce($carId, $in, $customer, $pickup, $return, $quote);
             } catch (\Throwable $e) {
-                $isDuplicateNumber = $e instanceof \PDOException && (string) $e->getCode() === '23000';
+                $isDuplicateNumber = $e instanceof \PDOException && (string) $e->getCode() === '23000'
+                    && str_contains($e->getMessage(), 'uq_bookings_no');
                 if (!$isDuplicateNumber || $try === $maxTries) {
                     throw $e;
                 }
