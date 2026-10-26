@@ -25,17 +25,24 @@ final class Route
         $this->regex = $this->compile($pattern);
     }
 
-    /** แปลง /cars/{id} หรือ /cars/{id:\d+} เป็น regex */
+    /**
+     * แปลง /cars/{id} หรือ /cars/{id:\d+} เป็น regex
+     * ส่วนที่เป็นตัวอักษรตายตัว (เช่น "/cars.php") ถูก escape ก่อน จุด "." จึงเป็นจุดจริง ไม่ใช่ตัวแทนอักขระใดก็ได้
+     */
     private function compile(string $pattern): string
     {
-        $regex = preg_replace_callback(
-            '#\{(\w+)(?::([^}]+))?\}#',
-            function (array $m): string {
+        // แยกเป็นส่วนสลับกัน: ตัวอักษรตายตัว / {พารามิเตอร์} / ตัวอักษรตายตัว ...
+        $parts = preg_split('#(\{\w+(?::[^}]+)?\})#', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        $regex = '';
+        foreach ($parts as $part) {
+            if (preg_match('#^\{(\w+)(?::([^}]+))?\}$#', $part, $m)) {
                 $this->paramNames[] = $m[1];
-                return '(?P<' . $m[1] . '>' . ($m[2] ?? '[^/]+') . ')';
-            },
-            $pattern
-        );
+                $regex .= '(?P<' . $m[1] . '>' . ($m[2] ?? '[^/]+') . ')';
+            } else {
+                $regex .= preg_quote($part, '#');
+            }
+        }
         return '#^' . $regex . '$#u';
     }
 

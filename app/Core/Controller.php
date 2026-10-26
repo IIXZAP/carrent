@@ -39,9 +39,9 @@ abstract class Controller
         Flash::add($type, $message);
     }
 
-    protected function notFound(string $title = 'ไม่พบหน้าที่ต้องการ'): Response
+    protected function notFound(string $title = 'ไม่พบหน้าที่ต้องการ', string $message = 'หน้านี้อาจถูกย้ายหรือลบไปแล้ว'): Response
     {
-        return (new \App\Controllers\ErrorController($this->request))->notFound($title);
+        return (new \App\Controllers\ErrorController($this->request))->notFound($title, $message);
     }
 
     /** หยุดงานทันทีแล้วตอบ $response (ใช้ได้จากชั้นลึก) */

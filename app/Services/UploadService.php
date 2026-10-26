@@ -120,10 +120,27 @@ final class UploadService
         $newW   = max(1, (int) round($w * $scale));
         $newH   = max(1, (int) round($h * $scale));
         $resized = imagecreatetruecolor($newW, $newH);
+        if ($type !== IMAGETYPE_JPEG) {
+            // PNG / WEBP: คงพื้นโปร่งใสไว้
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+        }
         imagecopyresampled($resized, $src, 0, 0, 0, 0, $newW, $newH, $w, $h);
-        @imagejpeg($resized, $fullPath, $quality);
+        self::writeImage($resized, $fullPath, $type, $quality);
         imagedestroy($src);
         imagedestroy($resized);
+    }
+
+    /** บันทึกรูปในชนิดเดิมของไฟล์ (นามสกุลกับเนื้อไฟล์จะได้ตรงกัน) */
+    private static function writeImage($image, string $path, int $type, int $quality): void
+    {
+        if ($type === IMAGETYPE_PNG) {
+            @imagepng($image, $path, 6);
+        } elseif ($type === IMAGETYPE_WEBP && function_exists('imagewebp')) {
+            @imagewebp($image, $path, $quality);
+        } else {
+            @imagejpeg($image, $path, $quality);
+        }
     }
 
     /** เปิดรูปตามชนิด (JPEG / PNG / WEBP) คืน false ถ้าเปิดไม่ได้ */

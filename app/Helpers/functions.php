@@ -159,13 +159,23 @@ function baht_text(float $amount): string
     return $text;
 }
 
-/** อ่านเลขจำนวนเต็มเป็นคำไทย เช่น "21" → "ยี่สิบเอ็ด" (รองรับถึงหลักล้าน) */
-function thai_number_words(string $digits): string
+/**
+ * อ่านเลขจำนวนเต็มเป็นคำไทย เช่น "21" → "ยี่สิบเอ็ด", "12345678" → "สิบสองล้านสามแสน..."
+ * เลขเกิน 6 หลักอ่านเป็นก้อน "ล้าน" ซ้อนกันได้ (เช่น 1,000,000,000,000 = หนึ่งล้านล้าน)
+ * $afterMillions = true เมื่อเป็นส่วนท้ายหลังคำว่า "ล้าน" (หลักหน่วยที่เป็น 1 ต้องอ่าน "เอ็ด")
+ */
+function thai_number_words(string $digits, bool $afterMillions = false): string
 {
     $names = ['ศูนย์', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
-    $units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน', 'ล้าน'];
+    $units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
 
     $digits = ltrim($digits, '0');
+    if (strlen($digits) > 6) {
+        $millions  = substr($digits, 0, -6);
+        $remainder = substr($digits, -6);
+        return thai_number_words($millions) . 'ล้าน' . thai_number_words($remainder, true);
+    }
+
     $length = strlen($digits);
     $text   = '';
     for ($i = 0; $i < $length; $i++) {
@@ -174,7 +184,7 @@ function thai_number_words(string $digits): string
         if ($digit === 0) {
             continue;
         }
-        if ($position === 0 && $digit === 1 && $length > 1) {
+        if ($position === 0 && $digit === 1 && ($length > 1 || $afterMillions)) {
             $text .= 'เอ็ด';
         } elseif ($position === 1 && $digit === 1) {
             $text .= 'สิบ';
