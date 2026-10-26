@@ -16,6 +16,7 @@ final class QuoteService
             'booking_deposit'          => (float) Setting::get('booking_deposit', '1000'),
             'deposit_percent'          => (float) Setting::get('deposit_percent', '20'),
             'security_deposit_default' => (float) Setting::get('security_deposit_default', '3000'),
+            'grace_hours'              => (int) Setting::get('late_grace_hours', '2'),
             'free_km'                  => (float) Setting::get('free_delivery_km', '30'),
             'delivery_tiers'           => DeliveryFeeService::parseTiers(Setting::get('delivery_tiers', '')),
         ];

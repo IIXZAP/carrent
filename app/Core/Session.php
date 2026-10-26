@@ -8,7 +8,8 @@ final class Session
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
-        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
         session_name('carrent_sid');
         session_set_cookie_params([
             'lifetime' => 0,

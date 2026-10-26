@@ -20,7 +20,8 @@ final class PricingService
     /** บริการที่คิดตามระยะทาง ไม่ใช่ราคาในตาราง addons */
     public const DELIVERY_CODES = ['delivery', 'return_delivery'];
 
-    public static function rentalDays(string $pickup, string $return): int
+    /** $graceHours = ผ่อนผันคืนช้า (settings.late_grace_hours — ค่าเดียวกับที่ใช้คิดค่าปรับคืนช้า) */
+    public static function rentalDays(string $pickup, string $return, int $graceHours = self::GRACE_HOURS): int
     {
         $start = strtotime($pickup);
         $end   = strtotime($return);
@@ -28,7 +29,7 @@ final class PricingService
             return 0;
         }
         $hours = ($end - $start) / 3600;
-        $days  = (int) ceil(max(0, $hours - self::GRACE_HOURS) / 24);
+        $days  = (int) ceil(max(0, $hours - max(0, $graceHours)) / 24);
         return max(1, $days);
     }
 
@@ -159,12 +160,12 @@ final class PricingService
      * ใบเสนอราคาของการจอง
      *
      * $rules: vat_enabled(bool) vat_rate booking_deposit deposit_percent security_deposit_default
-     *         free_km delivery_tiers(array จาก parseTiers)
+     *         free_km delivery_tiers(array จาก parseTiers) grace_hours(ไม่ใส่ = 2)
      * ถ้า out_of_range = true แปลว่าเลือกส่ง/รับรถถึงที่แต่ไกลเกินระยะที่ตั้งราคาไว้ → ห้ามรับจอง
      */
     public static function quote(array $car, array $catalog, string $pickup, string $return, array $selected, float $discount, float $km, array $rules): array
     {
-        $days   = self::rentalDays($pickup, $return);
+        $days   = self::rentalDays($pickup, $return, (int) ($rules['grace_hours'] ?? self::GRACE_HOURS));
         $rental = self::calcRental($car, $days);
 
         $deliveryFee = DeliveryFeeService::feeForKm($km, (float) $rules['free_km'], $rules['delivery_tiers']);

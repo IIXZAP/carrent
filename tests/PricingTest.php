@@ -195,3 +195,21 @@ function test_quote_delivery_out_of_range_flag(): void
     assert_true($near['out_of_range'] === false);
     assert_money(1000, $near['addon_amount'], 'ส่ง+รับ 40 กม. = 500 × 2');
 }
+
+// ---------- ผ่อนผันคืนช้าปรับได้ (settings.late_grace_hours) ----------
+
+function test_pricing_grace_hours_is_configurable(): void
+{
+    $pickup = '2030-01-10 10:00:00';
+    $return = '2030-01-11 13:00:00';   // 27 ชม.
+    assert_same(2, PricingService::rentalDays($pickup, $return), 'ผ่อนผัน 2 ชม. (ค่าตั้งต้น): 27 ชม. = 2 วัน');
+    assert_same(1, PricingService::rentalDays($pickup, $return, 3), 'ผ่อนผัน 3 ชม.: 27 ชม. = 1 วัน');
+    assert_same(2, PricingService::rentalDays($pickup, $return, 0), 'ไม่ผ่อนผัน: 27 ชม. = 2 วัน');
+    assert_same(1, PricingService::rentalDays($pickup, '2030-01-11 10:00:00', 0), '24 ชม. ครบพอดี = 1 วัน');
+
+    $car = t_car();
+    $loose  = PricingService::quote($car, t_catalog(), $pickup, $return, [], 0.0, 0.0, t_rules(['grace_hours' => 3]));
+    $normal = PricingService::quote($car, t_catalog(), $pickup, $return, [], 0.0, 0.0, t_rules());
+    assert_same(1, $loose['days'], 'quote ใช้ค่าผ่อนผันจาก rules');
+    assert_same(2, $normal['days']);
+}

@@ -32,18 +32,21 @@ final class Router
     public function dispatch(string $method, string $path): void
     {
         $pathMatched = false;
+        $allowed = [];
         foreach ($this->routes as $route) {
             if (!preg_match($route['regex'], $path, $m)) {
                 continue;
             }
             $pathMatched = true;
             if ($route['method'] !== $method) {
+                $allowed[] = $route['method'];
                 continue;
             }
             $this->run($route, array_filter($m, 'is_string', ARRAY_FILTER_USE_KEY));
             return;
         }
         if ($pathMatched) {
+            header('Allow: ' . implode(', ', array_unique($allowed)));
             abort(405, 'ไม่รองรับวิธีเรียกนี้');
         }
         abort(404);

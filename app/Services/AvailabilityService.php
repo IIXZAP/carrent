@@ -56,7 +56,7 @@ final class AvailabilityService
     public static function availableCars(string $pickup, string $return, ?string $typeCode = null): array
     {
         [$from, $to] = self::paddedRange($pickup, $return);
-        $days = PricingService::rentalDays($pickup, $return);
+        $days = PricingService::rentalDays($pickup, $return, (int) Setting::get('late_grace_hours', '2'));
 
         $result = [];
         foreach (Car::availableBetween($from, $to, $typeCode) as $car) {
@@ -83,6 +83,7 @@ final class AvailabilityService
             'airport_close_time' => Setting::get('airport_close_time', '24:00'),
             'lead_hours'         => (int) Setting::get('booking_lead_hours', '3'),
             'min_days'           => (int) Setting::get('min_rental_days', '1'),
+            'grace_hours'        => (int) Setting::get('late_grace_hours', '2'),
         ];
     }
 
@@ -135,7 +136,7 @@ final class AvailabilityService
         if ($a < $now + $rules['lead_hours'] * 3600) {
             return "กรุณาจองล่วงหน้าอย่างน้อย {$rules['lead_hours']} ชั่วโมง";
         }
-        $days = PricingService::rentalDays($pickup, $return);
+        $days = PricingService::rentalDays($pickup, $return, (int) ($rules['grace_hours'] ?? PricingService::GRACE_HOURS));
         if ($days < $rules['min_days']) {
             return "ระยะเวลาเช่าขั้นต่ำ {$rules['min_days']} วัน";
         }

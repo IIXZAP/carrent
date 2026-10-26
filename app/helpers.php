@@ -45,7 +45,8 @@ function request_path(): string
 {
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
     $base = base_path();
-    if ($base !== '' && strncmp($path, $base, strlen($base)) === 0) {
+    $atBoundary = isset($path[strlen($base)]) ? $path[strlen($base)] === '/' : true;
+    if ($base !== '' && strncmp($path, $base, strlen($base)) === 0 && $atBoundary) {
         $path = substr($path, strlen($base));
     }
     $path = '/' . trim($path, '/');
