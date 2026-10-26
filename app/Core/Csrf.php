@@ -3,7 +3,7 @@
 namespace App\Core;
 
 /**
- * ป้องกัน CSRF — โทเคนเก็บในเซสชัน ส่งมากับฟอร์ม (_csrf) หรือส่วนหัว X-CSRF-Token
+ * ป้องกัน CSRF — โทเคนเก็บในเซสชัน ส่งมากับฟอร์ม (_csrf) หรือส่วนหัว X-CSRF-Token (ไม่รับจาก URL เพราะโทเคนจะหลุดไปกับ log และ Referer)
  */
 final class Csrf
 {
@@ -25,9 +25,6 @@ final class Csrf
         $sent = $request->post('_csrf');
         if (!is_string($sent) || $sent === '') {
             $sent = $request->header('X-CSRF-Token');
-        }
-        if ($sent === '') {
-            $sent = (string) $request->query('_csrf', '');
         }
         return !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], (string) $sent);
     }

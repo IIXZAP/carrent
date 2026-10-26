@@ -71,17 +71,29 @@ final class Payment extends Model
         return (float) Database::value("SELECT COALESCE(SUM(amount),0) FROM payments WHERE status = 'pending'");
     }
 
-    public static function approve(int $id, int $userId): void
+    /**
+     * อนุมัติสลิปที่ยังรอตรวจ — คืน true เฉพาะคำขอที่เปลี่ยนสถานะได้จริง
+     * (เงื่อนไข status = 'pending' อยู่ในคำสั่ง UPDATE เดียว ถ้าแอดมินสองคนกดพร้อมกัน จะสำเร็จแค่คนเดียว)
+     */
+    public static function approve(int $id, int $userId): bool
     {
-        self::updateById($id, ['status' => 'approved', 'approved_by' => $userId, 'approved_at' => date('Y-m-d H:i:s')]);
+        $changed = Database::exec(
+            "UPDATE payments SET status = 'approved', approved_by = :u, approved_at = :t
+             WHERE id = :id AND status = 'pending'",
+            [':u' => $userId, ':t' => date('Y-m-d H:i:s'), ':id' => $id]
+        );
+        return $changed === 1;
     }
 
-    public static function reject(int $id, int $userId, string $reason): void
+    /** ปฏิเสธสลิปที่ยังรอตรวจ — คืน true เฉพาะคำขอที่เปลี่ยนสถานะได้จริง (เหมือน approve) */
+    public static function reject(int $id, int $userId, string $reason): bool
     {
-        self::updateById($id, [
-            'status' => 'rejected', 'approved_by' => $userId, 'approved_at' => date('Y-m-d H:i:s'),
-            'reject_reason' => $reason,
-        ]);
+        $changed = Database::exec(
+            "UPDATE payments SET status = 'rejected', approved_by = :u, approved_at = :t, reject_reason = :r
+             WHERE id = :id AND status = 'pending'",
+            [':u' => $userId, ':t' => date('Y-m-d H:i:s'), ':r' => $reason, ':id' => $id]
+        );
+        return $changed === 1;
     }
 
     // ------------------------------------------------------------

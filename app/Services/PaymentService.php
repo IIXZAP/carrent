@@ -92,7 +92,9 @@ final class PaymentService
         if (!$p || $p['status'] !== 'pending') {
             return false;
         }
-        Payment::approve($paymentId, $userId);
+        if (!Payment::approve($paymentId, $userId)) {
+            return false;   // มีคนอนุมัติ/ปฏิเสธไปก่อนหน้านี้เสี้ยววินาที
+        }
         self::recalc((int) $p['booking_id']);
 
         // จองที่ยังรอยืนยัน + จ่ายมัดจำแล้ว → ยืนยันอัตโนมัติ
@@ -124,7 +126,9 @@ final class PaymentService
             return false;
         }
         $reason = $reason !== '' ? $reason : 'ข้อมูลไม่ถูกต้อง';
-        Payment::reject($paymentId, $userId, $reason);
+        if (!Payment::reject($paymentId, $userId, $reason)) {
+            return false;
+        }
         self::recalc((int) $p['booking_id']);
         $bk = Booking::find((int) $p['booking_id']);
         if ($bk) {

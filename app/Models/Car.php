@@ -82,10 +82,9 @@ final class Car extends Model
     /** รถที่ใช้เป็นภาพเด่นหน้าแรก (คันที่ 3 ที่มีรูป ถ้าไม่มีใช้คันแรก) */
     public static function hero(): ?array
     {
-        return Database::one(
-            "SELECT * FROM cars WHERE cover_image IS NOT NULL AND status = 'available'
-             ORDER BY sort_order LIMIT 1 OFFSET 2"
-        );
+        $sql = "SELECT * FROM cars WHERE cover_image IS NOT NULL AND status = 'available' ORDER BY sort_order LIMIT 1";
+        $third = Database::one($sql . ' OFFSET 2');
+        return $third ?: Database::one($sql);   // มีไม่ถึง 3 คัน ใช้คันแรก
     }
 
     public static function status(int $id): ?string
