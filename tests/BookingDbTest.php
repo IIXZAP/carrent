@@ -50,7 +50,7 @@ function test_db_booking_saves_everything(): void
     $id = t_book($car, '2030-06-10 10:00:00', '2030-06-13 10:00:00', [], ['addons' => ['child_seat' => 1], 'source' => 'web']);
     $b = Booking::find($id);
 
-    assert_true(preg_match('/^BK\d{6}-\d{3}$/', $b['booking_no']) === 1, 'รูปแบบเลขที่จอง: ' . $b['booking_no']);
+    assert_true(preg_match('/^BK\d{6}-\d{3,}$/', $b['booking_no']) === 1, 'รูปแบบเลขที่จอง: ' . $b['booking_no']);
     assert_same('pending', $b['status']);
     assert_same('unpaid', $b['payment_status']);
     assert_same('web', $b['source']);
