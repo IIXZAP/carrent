@@ -1,43 +1,35 @@
 <?php
-/**
- * เริ่มระบบ — โหลด config, autoloader, ฟังก์ชันช่วย, ตัวจัดการข้อผิดพลาด และเซสชัน
- * ทุกจุดเข้า (index.php, cron/daily.php) ต้อง require ไฟล์นี้ก่อนทำอย่างอื่น
- */
+/** เริ่มระบบ: autoload, config, timezone, session, error handler */
 
-require_once dirname(__DIR__) . '/config/config.php';
+define('APP_ROOT', dirname(__DIR__));
 
-define('APP_PATH', __DIR__);
-define('VIEW_PATH', __DIR__ . '/Views');
-
-// ---------- autoloader (namespace App\ → โฟลเดอร์ app/) ----------
 spl_autoload_register(static function (string $class): void {
     $prefix = 'App\\';
-    if (!str_starts_with($class, $prefix)) {
+    if (strncmp($class, $prefix, strlen($prefix)) !== 0) {
         return;
     }
-    $file = __DIR__ . '/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
-    if (is_file($file)) {
-        require $file;
+    $path = APP_ROOT . '/app/' . str_replace('\\', '/', substr($class, strlen($prefix))) . '.php';
+    if (is_file($path)) {
+        require $path;
     }
 });
 
-require_once __DIR__ . '/Helpers/functions.php';
+$GLOBALS['config'] = require APP_ROOT . '/config/config.php';
+require APP_ROOT . '/app/helpers.php';
 
-// ---------- กันข้อมูลรูปแบบผิดทำให้หน้าเว็บล่ม ----------
-// ระบบนี้ไม่มีพารามิเตอร์ใน URL ที่เป็น array — ถ้ามีคนส่ง ?no[]=x มา ให้ถือว่าเป็นค่าว่าง
-// (ไม่งั้น trim() จะโยน TypeError แล้วได้หน้าขาว 500)
-foreach ($_GET as $__k => $__v) {
-    if (is_array($__v)) {
-        $_GET[$__k] = '';
-        if (!isset($_POST[$__k])) {
-            $_REQUEST[$__k] = '';
-        }
+date_default_timezone_set(config('timezone'));
+
+ini_set('display_errors', config('debug') ? '1' : '0');
+error_reporting(E_ALL);
+
+set_exception_handler(static function (Throwable $e): void {
+    error_log((string) $e);
+    http_response_code(500);
+    if (config('debug')) {
+        echo '<pre>' . e((string) $e) . '</pre>';
+        return;
     }
-}
-unset($__k, $__v);
+    echo view_render('errors/500', [], 'layouts/public');
+});
 
-\App\Core\ErrorHandler::register();
-
-// เปิดเซสชันตั้งแต่ต้น request ก่อนมี output ใดๆ
-// (ถ้าเริ่มเซสชันหลังพ่น HTML แล้ว PHP จะส่ง cookie ไม่ได้ ทำให้ CSRF token และ flash message หายทุกครั้ง)
 \App\Core\Session::start();

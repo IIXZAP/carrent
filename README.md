@@ -1,114 +1,94 @@
-# thonglorcarrent — ระบบเช่ารถ (PHP MVC + PDO + Tailwind CSS)
+# carrent — version 2 (เขียนใหม่ตั้งแต่ศูนย์) · PHP MVC + PDO + MySQL + Tailwind
 
-ระบบเช่ารถออนไลน์พร้อมหลังบ้าน เขียนด้วย **PHP 8.1+ แบบ MVC**, ติดต่อฐานข้อมูลด้วย **PDO (prepared statements ทั้งหมด)**
-และจัดหน้าด้วย **Tailwind CSS** — รันบน shared hosting (cPanel) ได้โดยไม่ต้องมี Composer หรือ Node.js บนเซิร์ฟเวอร์
+เวอร์ชัน basic ของระบบเช่ารถ ใช้ schema ใหม่ (`database/migrations/001_schema.sql`)
 
-## โครงสร้างโปรเจกต์
+> branch นี้ (`rewrite/v2`) มีเฉพาะโปรเจกต์ใหม่ที่ root — ระบบเดิมอยู่ใน branch `main`
+> เอกสารของระบบเดิม (CODE_MAP, reference ทีละเมธอด, README เก่า) เก็บไว้ที่ `docs/legacy/` ใช้เป็นสเปกกฎธุรกิจตอน port
+รันบน shared hosting ได้ (ไม่ต้องมี Composer/Node บนเซิร์ฟเวอร์ — `assets/css/app.css` build แล้ว commit ไว้)
 
-```
-index.php                 Front controller — ทุกคำขอเข้าที่นี่ผ่าน .htaccess
-.htaccess                 rewrite ทุก URL ที่ไม่ใช่ไฟล์จริง → index.php, ปิดโฟลเดอร์ภายใน
-config/config.php         ค่าตั้งต้นที่ต้องแก้ตอนติดตั้ง (ฐานข้อมูล, BASE_URL, เขตเวลา)
-cron/daily.php            งานรายวัน (บางมาก: ตรวจรหัสแล้วเรียก CronService)
-database/                 schema.sql (โครงสร้างทั้งหมด ไฟล์เดียว) + seed.sql (ข้อมูลตั้งต้น)
-assets/                   css (app.css ที่ build แล้ว), js, img
-uploads/                  รูปรถ สลิป รูปตรวจสภาพรถ (เปิดผ่านเว็บได้ แต่ห้ามรันสคริปต์)
-storage/                  ไฟล์สำรองและเอกสารลูกค้า (ปิดไม่ให้เปิดผ่านเว็บ)
-
-app/
-├─ bootstrap.php          autoloader (namespace App\) + helpers + ErrorHandler + Session
-├─ routes.php             ตาราง URL → [Controller, method] ทั้งระบบ
-├─ Core/                  ตัวขับเคลื่อน: Router, Request, Response, View, Controller, Model,
-│                         Database (PDO), Session, Csrf, Flash, ErrorHandler
-├─ Models/                เข้าถึงข้อมูล (static, PDO) — Booking, Car, Customer, Payment, ...
-├─ Services/              กฎธุรกิจ แยกเป็นคลาสเล็กๆ คลาสละหน้าที่เดียว:
-│                         จอง     WebBookingService (ลูกค้า) · AdminBookingService (หลังบ้าน) · BookingActionService
-│                                 (ยืนยัน/ส่งมอบ/ยกเลิก/รับเงิน) · ReturnService · ExtendService · SecurityDepositService
-│                         ราคา    PricingService · DeliveryFeeService · LateReturnService · AvailabilityService
-│                         ติดต่อ  LineService · NotificationService · SignatureService
-│                         ระบบ    PaymentService · UploadService · PrivateFileService · BackupService ·
-│                                 HealthService · MonthlyReportService · CronService
-├─ Middleware/            AuthMiddleware (ต้องล็อกอิน), AdminMiddleware (เฉพาะเจ้าของร้าน)
-├─ Controllers/           หน้าเว็บลูกค้า, API, LINE (LIFF/webhook)
-│  └─ Admin/              ตัวควบคุมหลังบ้านทั้งหมด
-├─ Helpers/functions.php  ฟังก์ชันช่วยใน view (e(), url(), money(), thai_date(), icon(), ...)
-└─ Views/                 เทมเพลต PHP + คลาส Tailwind
-   ├─ layouts/            public, admin, admin_print, admin_login, focus (หน้ามือถือสั้นๆ)
-   ├─ partials/           ชิ้นส่วนที่ใช้ซ้ำ (flash, pagination, quote_box, contract_terms, ...)
-   ├─ public/             หน้าลูกค้า (หน้าแรก รถ จอง ตรวจสอบ เซ็นเอกสาร LIFF)
-   └─ admin/              หน้าหลังบ้าน
-```
-
-### แนวทางเขียนโค้ด (อ่านง่ายสำหรับ junior)
-
-- เมธอดสั้น ทำหน้าที่เดียว ตั้งชื่อบอกหน้าที่ (เช่น `checkContact`, `saveWithRetry`, `notifyCustomer`)
-- ใช้ `if` / `foreach` / `switch` ธรรมดา เลี่ยง closure, `match` และ one-liner ซ้อนกัน
-- ตรวจเงื่อนไขที่ผิดก่อนแล้ว `return` / `throw` ทันที (early return) ไม่เขียน `if` ซ้อนหลายชั้น
-- คอมเมนต์ภาษาไทยสั้นๆ อธิบาย "ทำไม" ไม่ใช่ "ทำอะไร"
-- ใน View ใช้คลาส Tailwind ที่ตั้งชื่อไว้ใน `input.css` (เช่น `btn`, `panel`, `eyebrow`, `stat-grid-lg`) แทนสายคลาสยาวๆ ที่ซ้ำกัน
-
-### การไหลของคำขอ
-
-`index.php` → `Application::run()` → `Router` จับคู่ `routes.php` → (Middleware) → **Controller** →
-เรียก **Model / Service** → ส่งข้อมูลให้ **View** → `Response`
-
-- Controller บาง: รับค่า, เรียก Service, เลือก View/redirect เท่านั้น
-- กฎธุรกิจ (คิดราคา, ตรวจรถว่าง, ชำระเงิน, ค่าปรับ, ลายเซ็น) อยู่ใน `Services/`
-- SQL ทั้งหมดอยู่ใน `Models/` ผ่าน `App\Core\Database` (named placeholders, `ATTR_EMULATE_PREPARES=false`)
-- ทุกฟอร์ม POST ตรวจ CSRF อัตโนมัติโดย Router (ยกเว้น webhook ที่ตรวจลายเซ็นของ LINE เอง)
-
-## ติดตั้ง
-
-1. สร้างฐานข้อมูล **MySQL 8.0+ หรือ MariaDB 10.4+** (utf8mb4) แล้ว import 2 ไฟล์ตามลำดับ:
-   `database/schema.sql` → `database/seed.sql`
-   (`schema.sql` ลบและสร้างตารางใหม่ทั้งหมด — ใช้ติดตั้งใหม่เท่านั้น ห้ามรันบนฐานข้อมูลที่มีข้อมูลจริง
-   ถ้า import ด้วยบรรทัดคำสั่งให้ใส่ `--default-character-set=utf8mb4`)
-2. แก้ `config/config.php` — `DB_HOST / DB_NAME / DB_USER / DB_PASS` (ระบบตรวจ `BASE_URL` เองจากตำแหน่งไฟล์)
-3. อัปโหลดทั้งโปรเจกต์ (ไม่ต้องอัป `node_modules/`) ให้ Apache/LiteSpeed เปิด `mod_rewrite` ได้
-4. เปิด `https://โดเมน/check` ตรวจการติดตั้ง แล้วเข้า `https://โดเมน/admin/login`
-   ผู้ใช้เริ่มต้น `admin@thonglorcarrent.com` / `Thonglor@2026` — **เปลี่ยนรหัสผ่านทันที**
-5. ตั้ง cron วันละครั้งตามคำสั่งที่หน้า หลังบ้าน → ตั้งค่า → Cron
-
-## ฐานข้อมูล
-
-- **Foreign key ครบ** — การเงิน/เอกสาร/หลักฐาน (`payments`, `documents`, `inspections`, `signatures`) ใช้ `RESTRICT`
-  ลบการจองแล้วหลักฐานไม่หายตาม
-- **CHECK** — ยอดเงินไม่ติดลบ, คืนรถหลังรับรถ, ขีดน้ำมัน 0–8, ไมล์คืน ≥ ไมล์รับ, ปีรถ 1990–2100 (ค.ศ.)
-- **ประเภทรถ** อยู่ในตาราง `car_types` — เพิ่ม/แก้/ปิดได้ที่ หลังบ้าน → ประเภทรถ ไม่ต้องแก้โค้ด
-- **วันหมดอายุประกัน/พ.ร.บ./ภาษี/เช็กระยะ** เก็บที่ตาราง `maintenances` ที่เดียว
-  (กรอกในฟอร์มรถได้เหมือนเดิม ระบบบันทึกเป็นงานประจำรถให้) ดูสรุปต่อคันจาก VIEW `v_car_compliance`
-- **เลขที่การจอง/ลูกค้า/เอกสาร** มาจากตาราง `sequences` (เพิ่มเลขแบบ atomic — ไม่ซ้ำแม้จองพร้อมกัน)
-- ออกแบบให้ใช้ได้ทั้ง MySQL และ MariaDB (ทดสอบกับ MySQL 8.0 และ MariaDB 10.11)
-
-## Tailwind CSS
-
-`assets/css/app.css` ถูก build แล้วและ commit ไว้ (โฮสต์ไม่ต้องมี Node.js) แก้หน้าตา/เพิ่มคลาสแล้วค่อย build ใหม่:
+## รันบนเครื่อง
 
 ```bash
-npm install
-npm run build      # หรือ npm run watch ระหว่างพัฒนา
+# 1) สร้างฐานข้อมูล แล้วตั้งค่าเชื่อมต่อ (config/config.local.php หรือ env DB_HOST/DB_NAME/DB_USER/DB_PASS)
+mysql -uroot -e "CREATE DATABASE carrent_v3 CHARACTER SET utf8mb4"
+
+# 2) สร้างตาราง (รันซ้ำได้ ข้ามไฟล์ที่เคยรันแล้ว)
+php bin/migrate.php
+
+# 3) สร้างผู้ใช้หลังบ้าน (จะถามรหัสผ่าน อย่างน้อย 10 ตัว)
+php bin/create-admin.php owner@example.com "เจ้าของร้าน" admin
+
+# 4) เปิดเซิร์ฟเวอร์
+php -S localhost:8000 index.php
 ```
 
-- ต้นฉบับ: `assets/css/src/input.css` (base + component ที่ใช้ซ้ำ เช่น `.btn .field .panel .table .badge-* .alert-*`)
-- ตั้งค่าธีม: `tailwind.config.js` — สีแบรนด์อ่านจากตัวแปร CSS (`--c-brand` ฯลฯ) ที่ `brand_style()` ฉีดจากหน้า
-  หลังบ้าน → ตั้งค่า จึงเปลี่ยนสีทั้งเว็บได้โดยไม่ต้อง build ใหม่
-- คลาสที่ประกอบชื่อจากตัวแปร PHP (เช่น `'badge-' . $tone`) ต้องเขียนเต็มใน view หรืออยู่ใน `safelist`
+หน้าลูกค้า `/` · หลังบ้าน `/admin`
 
-## แผนที่ URL
+แก้หน้าตา: `npm install && npm run build` (ต้นฉบับ `assets/css/src/input.css`)
 
-| ส่วน | URL |
-|------|-----|
-| หน้าลูกค้า | `/` · `/cars` · `/cars/{id}` · `/booking` (POST) · `/booking/success` · `/track` · `/how-to` · `/faq` · `/contact` · `/terms` |
-| เซ็นเอกสาร / LINE | `/sign` · `/liff` · `/liff/api` · `/line/webhook` |
-| ระบบ | `/sitemap.xml` · `/health` · `/check` · `/api/quote` · `/api/track` |
-| หลังบ้าน | `/admin/login` · `/admin/dashboard` · `/admin/bookings[/{id}]` · `/admin/calendar` · `/admin/payments` · `/admin/cars` · `/admin/car-types` · `/admin/customers` · `/admin/maintenance` · `/admin/documents` · `/admin/reports` · `/admin/monthly-report` · `/admin/ab-report` · `/admin/line` · `/admin/settings` · `/admin/users` · `/admin/backups` · `/admin/health` |
+## โครงสร้าง
 
-ที่อยู่แบบเดิม (`/cars.php`, `/admin/booking-view.php?id=1`, ...) ยังใช้ได้ — ระบบตอบ 301 ไปที่อยู่ใหม่ให้
-(ส่วน `/line/webhook.php` และ `/liff/api.php` คงรับ POST ไว้ เพราะระบบภายนอกอาจยังเรียกที่อยู่เดิม)
+```
+index.php            front controller
+app/bootstrap.php    autoload (App\), config, timezone, session, error handler
+app/routes.php       ตาราง URL → [Controller, method] (+ middleware 'auth' / 'admin')
+app/Core/            Router, Database (PDO), View, Session, Csrf, Flash
+app/Models/          SQL ทั้งหมดอยู่ที่นี่ (Car, CarType, User)
+app/Services/        กฎธุรกิจ (Auth, CarService)
+app/Controllers/     บาง: รับค่า → เรียก Service/Model → ส่ง View
+app/Views/           เทมเพลต PHP + Tailwind
+database/migrations/ ไฟล์ .sql เรียงตามชื่อ ห้ามแก้ไฟล์ที่รันแล้ว — เพิ่มไฟล์ใหม่แทน
+bin/                 migrate.php, create-admin.php
+```
 
-## เพิ่มหน้าใหม่
+กฎ: SQL อยู่ใน Model เท่านั้น · View ครอบข้อมูลผู้ใช้ด้วย `e()` ทุกจุด · POST ทุกเส้นตรวจ CSRF โดย Router
 
-1. เพิ่มบรรทัดใน `app/routes.php` — `$r->get('/path', [XController::class, 'method']);`
-2. เขียนเมธอดใน Controller (`return $this->view('folder/name', [...])`)
-3. สร้างไฟล์ `app/Views/folder/name.php` — เริ่มด้วย `$this->layout('layouts/public', ['title' => '...'])`
-4. `npm run build` ถ้าใช้คลาส Tailwind ใหม่
+ไฟล์ migration: ห้ามมี `;` หรือ `--` อยู่ในข้อความ string (ตัวรันแยกคำสั่งแบบง่าย)
+
+## ทำเสร็จแล้ว
+
+**slice 0–1**
+- โครงแกน, migration runner, ล็อกอิน/ออกจากระบบ (role admin/staff)
+- จัดการรถหลังบ้าน (เพิ่ม/แก้/ลบแบบ soft delete — ลบไม่ได้ถ้ามีการจองค้างอยู่)
+- หน้าลูกค้า: รายการรถ + รายละเอียดรถ
+
+**slice 2: ตรวจรถว่าง + คิดราคา**
+- `PricingService` (ฟังก์ชันล้วน ไม่แตะ DB): นับวัน (ผ่อนผัน 2 ชม.), เหมาเดือน/สัปดาห์/วันที่ถูกที่สุด,
+  บริการเสริม, ค่าส่งตามระยะทาง (`DeliveryFeeService`), VAT, มัดจำ, เงินประกัน
+  — ยอดเงินปัดสตางค์ทุกขั้น และส่วนลดไม่เกินยอด เพื่อให้ผ่าน CHECK `subtotal`/`grand_total` ของตาราง `bookings`
+- `AvailabilityService`: ตรวจรถว่าง (เว้นช่วงพักรถ `booking_gap_hours`, บล็อกวัน, รถที่เลยกำหนดคืนแต่ยังไม่รับคืนถือว่าไม่ว่าง),
+  ตรวจเวลาทำการ/จองล่วงหน้า/ขั้นต่ำ/สูงสุด
+- หน้าลูกค้า: หน้าแรกค้นหารถว่างตามวัน–เวลาพร้อมราคา, หน้ารถมีกล่องคำนวณราคา + บริการเสริม
+- ค่าตั้งต้น: `database/migrations/002_seed_defaults.sql` (แก้ภายหลังที่ตาราง `settings` / `addons`)
+
+## เทสต์
+
+```bash
+# ใช้ฐานข้อมูลแยกสำหรับทดสอบ (เทสต์ test_db_* รันใน transaction แล้ว rollback ให้ ไม่เหลือข้อมูล)
+export DB_NAME=carrent_v3_test DB_USER=... DB_PASS=...
+php bin/migrate.php
+php tests/run.php            # ทั้งหมด   |   php tests/run.php pricing   # เฉพาะชื่อที่มีคำนี้
+```
+
+- `tests/golden/rental_old.json` = ค่าที่ได้จาก `PricingService` **ของระบบเดิม** (700 เคสราคา + 26 เคสนับวัน)
+  ตัวใหม่ต้องให้ค่าเท่ากันทุกเคส — สร้างใหม่เฉพาะเมื่อตั้งใจเปลี่ยนกฎราคา (วิธีอยู่ที่หัวไฟล์ `tests/golden/generate_from_old.php`)
+- ถ้าต่อ DB ไม่ได้ เทสต์ที่ใช้ DB จะถูกข้ามและรันเนอร์คืน exit code 1 (ไม่นับว่าผ่าน)
+
+## หมายเหตุสำหรับขั้นถัดไป (สร้างการจอง)
+
+- ตรวจรถว่าง + INSERT booking ต้องอยู่ใน transaction เดียว: `Database::begin()` → `Car::lockForUpdate($id)`
+  → `AvailabilityService::isCarAvailable()` → insert → `commit` (ไม่งั้นสองคำขอพร้อมกันอาจจองซ้อน)
+- ค่าส่งรถคิดตามระยะทาง (`settings.delivery_tiers`) จึงไม่ได้ใช้คอลัมน์ `cars.delivery_fee` — พิจารณาตัดคอลัมน์นี้ใน migration ถัดไป
+
+## ขั้นถัดไป (ตามลำดับ)
+
+3. สร้างการจอง (เว็บ + หลังบ้าน, `sequences`, ล็อก `cars ... FOR UPDATE`)
+4. ชำระเงิน/สลิป
+5. ส่งมอบ–รับคืน (`inspections`)
+6. เอกสาร/ลายเซ็น
+7. LINE
+8. รายงาน/ซ่อมบำรุง/cron
+
+## รอ optimize ภายหลัง
+
+รูปรถ (`car_images`) · จำกัดจำนวนครั้งล็อกอินผิด · เปลี่ยนรหัสผ่าน · pagination/ค้นหา · เทสต์อัตโนมัติ · cache

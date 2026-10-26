@@ -1,55 +1,33 @@
 <?php
-
 namespace App\Models;
 
 use App\Core\Database;
-use App\Core\Model;
 
-/** ผู้ใช้ระบบหลังบ้าน (admin / staff) */
-final class User extends Model
+final class User
 {
-    protected static string $table = 'users';
-
-    public static function findActiveByEmail(string $email): ?array
+    public static function findByEmail(string $email): ?array
     {
-        return Database::one('SELECT * FROM users WHERE email = :e AND is_active = 1', [':e' => $email]);
+        return Database::one(
+            'SELECT * FROM users WHERE email = :email AND is_active = 1',
+            ['email' => strtolower($email)]
+        );
     }
 
-    /** สิทธิ์และสถานะล่าสุด (อ่านทุกครั้งที่ตรวจล็อกอิน เพื่อให้การปิดบัญชี/ลดสิทธิ์มีผลทันที) */
-    public static function authState(int $id): ?array
+    public static function find(int $id): ?array
     {
-        return Database::one('SELECT name, role, is_active FROM users WHERE id = :i', [':i' => $id]);
+        return Database::one('SELECT * FROM users WHERE id = :id AND is_active = 1', ['id' => $id]);
+    }
+
+    public static function create(string $name, string $email, string $passwordHash, string $role): int
+    {
+        return Database::insert(
+            'INSERT INTO users (name, email, password_hash, role) VALUES (:name, :email, :hash, :role)',
+            ['name' => $name, 'email' => strtolower($email), 'hash' => $passwordHash, 'role' => $role]
+        );
     }
 
     public static function touchLogin(int $id): void
     {
-        self::updateById($id, ['last_login_at' => date('Y-m-d H:i:s')]);
-    }
-
-    public static function all(): array
-    {
-        return Database::all(
-            'SELECT id, name, email, role, phone, is_active, last_login_at, created_at, updated_at
-             FROM users ORDER BY role, name'
-        );   // ไม่ดึง password_hash มาไว้ในหน้าที่ไม่ต้องใช้
-    }
-
-    public static function emailTaken(string $email, int $exceptId = 0): bool
-    {
-        return (bool) Database::one('SELECT id FROM users WHERE email = :e AND id <> :i', [':e' => $email, ':i' => $exceptId]);
-    }
-
-    /** จำนวนเจ้าของร้านที่ใช้งานได้ (ไม่นับ $exceptId) */
-    public static function activeAdminCount(int $exceptId = 0): int
-    {
-        return (int) Database::value(
-            "SELECT COUNT(*) FROM users WHERE role = 'admin' AND is_active = 1 AND id <> :i",
-            [':i' => $exceptId]
-        );
-    }
-
-    public static function roleAndStatus(int $id): ?array
-    {
-        return Database::one('SELECT role, is_active FROM users WHERE id = :i', [':i' => $id]);
+        Database::run('UPDATE users SET last_login_at = NOW() WHERE id = :id', ['id' => $id]);
     }
 }

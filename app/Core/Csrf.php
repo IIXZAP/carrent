@@ -1,31 +1,23 @@
 <?php
-
 namespace App\Core;
 
-/**
- * ป้องกัน CSRF — โทเคนเก็บในเซสชัน ส่งมากับฟอร์ม (_csrf) หรือส่วนหัว X-CSRF-Token (ไม่รับจาก URL เพราะโทเคนจะหลุดไปกับ log และ Referer)
- */
 final class Csrf
 {
     public static function token(): string
     {
-        if (empty($_SESSION['csrf'])) {
-            $_SESSION['csrf'] = bin2hex(random_bytes(32));
+        $token = Session::get('_csrf');
+        if (!is_string($token) || $token === '') {
+            $token = bin2hex(random_bytes(32));
+            Session::set('_csrf', $token);
         }
-        return $_SESSION['csrf'];
+        return $token;
     }
 
-    public static function field(): string
+    public static function valid(?string $given): bool
     {
-        return '<input type="hidden" name="_csrf" value="' . e(self::token()) . '">';
-    }
-
-    public static function valid(Request $request): bool
-    {
-        $sent = $request->post('_csrf');
-        if (!is_string($sent) || $sent === '') {
-            $sent = $request->header('X-CSRF-Token');
+        if ($given === null || $given === '') {
+            return false;
         }
-        return !empty($_SESSION['csrf']) && hash_equals($_SESSION['csrf'], (string) $sent);
+        return hash_equals(self::token(), $given);
     }
 }

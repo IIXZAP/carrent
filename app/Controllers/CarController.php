@@ -1,101 +1,68 @@
 <?php
-
 namespace App\Controllers;
 
-use App\Core\Controller;
-use App\Core\Response;
+use App\Models\Addon;
+use App\Models\Booking;
 use App\Models\Car;
-use App\Models\CarType;
-use App\Services\AbTrackService;
 use App\Services\AvailabilityService;
-use App\Services\PricingService;
+use App\Services\QuoteService;
 
-/** รายการรถ + ผลค้นหารถว่าง + รายละเอียดรถพร้อมฟอร์มจอง */
-class CarController extends Controller
+final class CarController
 {
-
-    /** รายการรถ + ผลการค้นหารถว่างตามช่วงวัน */
-    public function index(): Response
+    public function show(string $id): void
     {
-        // รับได้ทั้งแบบแยกวัน/เวลา (pd,pt,rd,rt) และแบบเดิม (pickup,ret)
-        $pd = $this->request->str('pd');
-        $pt = $this->request->str('pt', 0, '10:00') ?: '10:00';
-        $rd = $this->request->str('rd');
-        $rt = $this->request->str('rt', 0, '10:00') ?: '10:00';
-
-        $pickup = $this->request->str('pickup');
-        $ret    = $this->request->str('ret');
-        if ($pd !== '' && $rd !== '') {
-            $pickup = $pd . 'T' . $pt;
-            $ret    = $rd . 'T' . $rt;
+        $car = Car::find((int) $id);
+        if ($car === null || $car['status'] !== 'available') {
+            abort(404);
         }
 
-        $type = $this->request->str('type');
-        $type = CarType::exists($type) ? $type : '';
+        $pickup = normalize_datetime($_GET['pickup'] ?? '');
+        $return = normalize_datetime($_GET['return'] ?? '');
+        $asked  = ($_GET['pickup'] ?? '') !== '' || ($_GET['return'] ?? '') !== '';
+        $rawAddons = is_array($_GET['addons'] ?? null) ? $_GET['addons'] : [];
+        $km = max(0.0, (float) ($_GET['km'] ?? 0));
 
-        $searching = $pickup !== '' && $ret !== '';
         $error = null;
-        $days  = 0;
-        $cars  = [];
-
-        if ($searching) {
-            $pickupDb = date('Y-m-d H:i:s', (int) strtotime($pickup));
-            $retDb    = date('Y-m-d H:i:s', (int) strtotime($ret));
-            $error    = AvailabilityService::validatePeriod($pickupDb, $retDb);
-            if (!$error) {
-                $cars = AvailabilityService::availableCars($pickupDb, $retDb, $type ?: null);
-                $days = PricingService::rentalDays($pickupDb, $retDb);
+        $quote = null;
+        if ($asked) {
+            $error = $this->checkPeriod($car, $pickup, $return);
+        }
+        if ($asked && $error === null) {
+            $quote = QuoteService::forCar($car, $pickup, $return, $rawAddons, 0.0, $km);
+            if ($quote['out_of_range']) {
+                $error = 'พื้นที่ส่ง–รับรถไกลเกินระยะที่ให้บริการ กรุณาติดต่อเจ้าหน้าที่เพื่อขอราคา';
+                $quote = null;
             }
-        } else {
-            $cars = Car::allPublic($type ?: null);
         }
 
-        return $this->view('public/cars', [
-            'title'     => $searching ? 'รถว่างช่วง ' . thai_date($pickup) . ' – ' . thai_date($ret) : 'รถเช่าของเรา',
-            'searching' => $searching,
-            'error'     => $error,
-            'days'      => $days,
-            'cars'      => $cars,
-            'pickup'    => $pickup,
-            'ret'       => $ret,
-            // ค่าเริ่มต้นของแถบค้นหา
-            'sbPick'    => $pickup ?: date('Y-m-d\TH:i', strtotime('tomorrow 10:00')),
-            'sbRet'     => $ret ?: date('Y-m-d\TH:i', strtotime('tomorrow +1 day 10:00')),
-            'sbType'    => $type,
+        $catalog = Addon::activeCatalog();
+        view('public/car', [
+            'title'    => $car['brand'] . ' ' . $car['model'],
+            'car'      => $car,
+            'pickup'   => $pickup,
+            'return'   => $return,
+            'error'    => $error,
+            'quote'    => $quote,
+            'catalog'  => $catalog,
+            'selected' => QuoteService::cleanAddons($rawAddons, $catalog),
+            'km'       => $km,
+            'busy'     => Booking::busyRanges((int) $car['id'], date('Y-m-d H:i:s'), date('Y-m-d H:i:s', strtotime('+3 months'))),
         ]);
     }
 
-    /** รายละเอียดรถ + ฟอร์มจอง (คิดราคาสดผ่าน /api/quote) */
-    public function show(int $id): Response
+    /** ตรวจช่วงเวลา + รถว่างหรือไม่ — คืนข้อความผิดพลาด หรือ null ถ้าผ่าน */
+    private function checkPeriod(array $car, ?string $pickup, ?string $return): ?string
     {
-        $car = Car::findPublic($id);
-        if (!$car) {
-            return $this->notFound('ไม่พบรถคันนี้', 'รถอาจถูกนำออกจากระบบแล้ว');
+        if ($pickup === null || $return === null) {
+            return 'กรุณาเลือกวันและเวลารับรถ–คืนรถให้ครบ';
         }
-        AbTrackService::trackOnce('view_car', (int) $car['id']);
-
-        $pickup = $this->request->str('pickup') ?: date('Y-m-d\TH:i', strtotime('tomorrow 10:00'));
-        $ret    = $this->request->str('ret')    ?: date('Y-m-d\TH:i', strtotime('tomorrow +1 day 10:00'));
-        $pickDb = date('Y-m-d H:i:s', (int) strtotime($pickup));
-        $retDb  = date('Y-m-d H:i:s', (int) strtotime($ret));
-
-        $periodError = AvailabilityService::validatePeriod($pickDb, $retDb);
-        $available   = $periodError ? false : AvailabilityService::isCarAvailable($id, $pickDb, $retDb);
-        $q           = PricingService::quote($car, $pickDb, $retDb, [], 0.0, null, 0.0);
-
-        return $this->view('public/car', [
-            'title'       => $car['brand'] . ' ' . $car['model'],
-            'desc'        => 'เช่า ' . $car['brand'] . ' ' . $car['model'] . ' เริ่มต้น ' . money0($car['price_day']) . ' บาท/วัน ' . ($car['segment'] ?: ''),
-            'car'         => $car,
-            'carName'     => $car['brand'] . ' ' . $car['model'],
-            'features'    => json_decode((string) $car['features'], true) ?: [],
-            'busy'        => AvailabilityService::busyRanges($id),
-            'addonOpts'   => PricingService::addonCatalog($car),
-            'pickup'      => $pickup,
-            'ret'         => $ret,
-            'periodError' => $periodError,
-            'available'   => $available,
-            'q'           => $q,
-        ]);
+        $error = AvailabilityService::validatePeriod($pickup, $return);
+        if ($error !== null) {
+            return $error;
+        }
+        if (!AvailabilityService::isCarAvailable((int) $car['id'], $pickup, $return)) {
+            return 'รถคันนี้ไม่ว่างในช่วงเวลาที่เลือก';
+        }
+        return null;
     }
 }
