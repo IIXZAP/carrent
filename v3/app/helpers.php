@@ -94,9 +94,31 @@ function old(array $data, string $key, $default = '')
     return $data[$key] ?? $default;
 }
 
+/** แสดงเงิน: ไม่มีสตางค์ไม่โชว์ทศนิยม */
 function money($amount): string
 {
-    return number_format((float) $amount, 0);
+    $n = (float) $amount;
+    return number_format($n, fmod($n, 1.0) == 0.0 ? 0 : 2);
+}
+
+/** รับค่าจาก <input type="datetime-local"> หรือ "Y-m-d H:i[:s]" → "Y-m-d H:i:s" (null = รูปแบบไม่ถูกต้อง) */
+function normalize_datetime(?string $value): ?string
+{
+    $value = trim((string) $value);
+    foreach (['Y-m-d\TH:i', 'Y-m-d H:i', 'Y-m-d\TH:i:s', 'Y-m-d H:i:s'] as $format) {
+        $dt = DateTime::createFromFormat($format, $value);
+        $errors = DateTime::getLastErrors();
+        if ($dt !== false && ($errors === false || ($errors['warning_count'] + $errors['error_count']) === 0)) {
+            return $dt->format('Y-m-d H:i:s');
+        }
+    }
+    return null;
+}
+
+/** "Y-m-d H:i:s" → ค่าสำหรับ <input type="datetime-local"> */
+function input_datetime(?string $value): string
+{
+    return $value === null || $value === '' ? '' : date('Y-m-d\TH:i', strtotime($value));
 }
 
 function post(string $key, string $default = ''): string

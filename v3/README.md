@@ -42,15 +42,43 @@ bin/                 migrate.php, create-admin.php
 
 ไฟล์ migration: ห้ามมี `;` หรือ `--` อยู่ในข้อความ string (ตัวรันแยกคำสั่งแบบง่าย)
 
-## ทำเสร็จแล้ว (slice 0–1)
+## ทำเสร็จแล้ว
 
+**slice 0–1**
 - โครงแกน, migration runner, ล็อกอิน/ออกจากระบบ (role admin/staff)
 - จัดการรถหลังบ้าน (เพิ่ม/แก้/ลบแบบ soft delete — ลบไม่ได้ถ้ามีการจองค้างอยู่)
 - หน้าลูกค้า: รายการรถ + รายละเอียดรถ
 
+**slice 2: ตรวจรถว่าง + คิดราคา**
+- `PricingService` (ฟังก์ชันล้วน ไม่แตะ DB): นับวัน (ผ่อนผัน 2 ชม.), เหมาเดือน/สัปดาห์/วันที่ถูกที่สุด,
+  บริการเสริม, ค่าส่งตามระยะทาง (`DeliveryFeeService`), VAT, มัดจำ, เงินประกัน
+  — ยอดเงินปัดสตางค์ทุกขั้น และส่วนลดไม่เกินยอด เพื่อให้ผ่าน CHECK `subtotal`/`grand_total` ของตาราง `bookings`
+- `AvailabilityService`: ตรวจรถว่าง (เว้นช่วงพักรถ `booking_gap_hours`, บล็อกวัน, รถที่เลยกำหนดคืนแต่ยังไม่รับคืนถือว่าไม่ว่าง),
+  ตรวจเวลาทำการ/จองล่วงหน้า/ขั้นต่ำ/สูงสุด
+- หน้าลูกค้า: หน้าแรกค้นหารถว่างตามวัน–เวลาพร้อมราคา, หน้ารถมีกล่องคำนวณราคา + บริการเสริม
+- ค่าตั้งต้น: `database/migrations/002_seed_defaults.sql` (แก้ภายหลังที่ตาราง `settings` / `addons`)
+
+## เทสต์
+
+```bash
+# ใช้ฐานข้อมูลแยกสำหรับทดสอบ (เทสต์ test_db_* รันใน transaction แล้ว rollback ให้ ไม่เหลือข้อมูล)
+export DB_NAME=carrent_v3_test DB_USER=... DB_PASS=...
+php bin/migrate.php
+php tests/run.php            # ทั้งหมด   |   php tests/run.php pricing   # เฉพาะชื่อที่มีคำนี้
+```
+
+- `tests/golden/rental_old.json` = ค่าที่ได้จาก `PricingService` **ของระบบเดิม** (700 เคสราคา + 26 เคสนับวัน)
+  ตัวใหม่ต้องให้ค่าเท่ากันทุกเคส — สร้างใหม่ด้วย `tests/golden/generate_from_old.php` เฉพาะเมื่อตั้งใจเปลี่ยนกฎราคา
+- ถ้าต่อ DB ไม่ได้ เทสต์ที่ใช้ DB จะถูกข้ามและรันเนอร์คืน exit code 1 (ไม่นับว่าผ่าน)
+
+## หมายเหตุสำหรับขั้นถัดไป (สร้างการจอง)
+
+- ตรวจรถว่าง + INSERT booking ต้องอยู่ใน transaction เดียว: `Database::begin()` → `Car::lockForUpdate($id)`
+  → `AvailabilityService::isCarAvailable()` → insert → `commit` (ไม่งั้นสองคำขอพร้อมกันอาจจองซ้อน)
+- ค่าส่งรถคิดตามระยะทาง (`settings.delivery_tiers`) จึงไม่ได้ใช้คอลัมน์ `cars.delivery_fee` — พิจารณาตัดคอลัมน์นี้ใน migration ถัดไป
+
 ## ขั้นถัดไป (ตามลำดับ)
 
-2. ตรวจรถว่าง + คิดราคา (Service ล้วน + เทสต์)
 3. สร้างการจอง (เว็บ + หลังบ้าน, `sequences`, ล็อก `cars ... FOR UPDATE`)
 4. ชำระเงิน/สลิป
 5. ส่งมอบ–รับคืน (`inspections`)
