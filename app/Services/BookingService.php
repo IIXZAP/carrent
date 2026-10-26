@@ -28,6 +28,13 @@ final class BookingService
      */
     public static function createBooking(int $carId, string $pickup, string $return, array $contact, array $opt, bool $blockBlacklist = true): int
     {
+        return Database::retryOnDeadlock(
+            fn(): int => self::createOnce($carId, $pickup, $return, $contact, $opt, $blockBlacklist)
+        );
+    }
+
+    private static function createOnce(int $carId, string $pickup, string $return, array $contact, array $opt, bool $blockBlacklist): int
+    {
         Database::begin();
         try {
             $car = Car::lockForUpdate($carId);
@@ -61,14 +68,12 @@ final class BookingService
     /** ลูกค้าตามเบอร์โทร ไม่มีก็สร้างใหม่ ; blacklist จองไม่ได้ */
     private static function findOrCreateCustomer(array $contact, bool $blockBlacklist): int
     {
-        $customer = Customer::findByPhone($contact['phone']);
-        if ($customer !== null) {
-            if ($blockBlacklist && (int) $customer['is_blacklist'] === 1) {
-                throw new UserError('ไม่สามารถจองได้ กรุณาติดต่อเจ้าหน้าที่');
-            }
-            return (int) $customer['id'];
+        $customer = Customer::findByPhone($contact['phone'])
+            ?? Customer::createOrFind($contact['name'], $contact['phone'], $contact['email'] ?: null, $contact['line'] ?: null)['customer'];
+        if ($blockBlacklist && (int) $customer['is_blacklist'] === 1) {
+            throw new UserError('ไม่สามารถจองได้ กรุณาติดต่อเจ้าหน้าที่');
         }
-        return Customer::create($contact['name'], $contact['phone'], $contact['email'] ?: null, $contact['line'] ?: null);
+        return (int) $customer['id'];
     }
 
     /** พนักงานกรอกมัดจำ/เงินประกันเองได้ (มัดจำไม่เกินยอดรวม) — ไม่กรอก = ตามที่ระบบคิด */

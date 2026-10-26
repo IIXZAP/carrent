@@ -57,6 +57,32 @@ final class Database
         return (int) self::pdo()->lastInsertId();
     }
 
+    public static function inTransaction(): bool
+    {
+        return self::$depth > 0;
+    }
+
+    /**
+     * รันงานที่เป็น transaction ทั้งก้อน ถ้า DB เลือกเราเป็นเหยื่อ deadlock (1213 / SQLSTATE 40001)
+     * ลองใหม่ได้จำกัดรอบ — ปลอดภัยเพราะ DB ย้อน transaction ทั้งหมดให้แล้ว ยังไม่มีอะไรถูก commit
+     * ลองใหม่ไม่ได้ถ้าเรียกซ้อนอยู่ใน transaction ของคนอื่น (ชั้นนอกต้องเป็นคนตัดสินใจเอง)
+     * ข้อผิดพลาดอื่นไม่ลองซ้ำ
+     */
+    public static function retryOnDeadlock(callable $work, int $maxTries = 3)
+    {
+        for ($try = 1; ; $try++) {
+            try {
+                return $work();
+            } catch (\PDOException $e) {
+                $isDeadlock = (string) $e->getCode() === '40001' || (int) ($e->errorInfo[1] ?? 0) === 1213;
+                if (!$isDeadlock || $try >= $maxTries || self::$depth > 0) {
+                    throw $e;
+                }
+                usleep(random_int(10000, 80000));
+            }
+        }
+    }
+
     /** เริ่ม transaction — เรียกซ้อนได้ (ชั้นในใช้ SAVEPOINT) เพื่อให้เทสต์ครอบด้วย transaction แล้ว rollback ได้ */
     public static function begin(): void
     {

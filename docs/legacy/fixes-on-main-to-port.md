@@ -16,6 +16,7 @@
 | ค่า status รถที่ไม่ถูกต้องต้อง error ไม่ใช่กลายเป็น `available` | `CarService::validate` |
 | ตรวจรถว่าง + บันทึกการจอง ใน transaction เดียว **ล็อกแถวรถก่อนอ่านอย่างอื่น** (เดิมจอง 8 พร้อมกันได้ 6–7 ใบ) | `BookingService::createBooking` + `tests/RaceTest.php` (process จริง 8 ตัว; ถอดล็อก → ได้ 8 ใบ เทสต์ล้ม) |
 | จองหน้าเว็บ retry เฉพาะเลขที่จองซ้ำ | ไม่ต้อง retry: เลขที่จองมาจาก `sequences` แบบ atomic (ไม่มี retry เลย จึงไม่มี retry ผิดประเภท) |
+| ลูกค้าซ้ำเมื่อจองพร้อมกันด้วยเบอร์ใหม่เดียวกัน (ปัญหาใหม่ ไม่ได้มาจาก main) | UNIQUE `phone_active` + `Customer::createOrFind`; **อย่าอ่านแถวลูกค้าแบบ `FOR UPDATE`** — FK ของ bookings ขอ shared lock จึงวนรอกันเกิด deadlock ใช้ `LOCK IN SHARE MODE` |
 | ยกเลิกการจองต้อง atomic (กันสองคนกดพร้อมกัน/สถานะเปลี่ยนไปแล้ว) | `Booking::cancel` = `UPDATE ... WHERE status IN (...)` + เช็ก rowCount |
 
 ## ต้องทำเมื่อถึงขั้นนั้น

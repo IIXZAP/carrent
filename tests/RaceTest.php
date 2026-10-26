@@ -10,12 +10,12 @@ const T_RACE_WORKERS = 8;
 const T_RACE_PHONE_PREFIX = '0877770';
 
 /** รัน worker พร้อมกันทั้งหมด คืนผลบรรทัดเดียวต่อ worker */
-function t_race_run(array $carIds, string $pickup, string $return): array
+function t_race_run(array $carIds, string $pickup, string $return, ?string $samePhone = null): array
 {
     $startAt = microtime(true) + 1.5;
     $procs = [];
     foreach ($carIds as $i => $carId) {
-        $phone = T_RACE_PHONE_PREFIX . str_pad((string) $i, 3, '0', STR_PAD_LEFT);
+        $phone = $samePhone ?? T_RACE_PHONE_PREFIX . str_pad((string) $i, 3, '0', STR_PAD_LEFT);
         $cmd = [PHP_BINARY, __DIR__ . '/workers/book.php', (string) $carId, sprintf('%.4f', $startAt), $phone, $pickup, $return];
         $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
         assert_true(is_resource($proc), 'เปิด worker ไม่ได้');
@@ -71,6 +71,27 @@ function test_race_different_cars_all_succeed_with_unique_numbers(): void
         assert_same(T_RACE_WORKERS, count($ok), 'ทุกคันจองสำเร็จ (ไม่ deadlock): ' . json_encode($results, JSON_UNESCAPED_UNICODE));
         $numbers = array_map(static fn(string $r): string => substr($r, 3), array_values($ok));
         assert_same(T_RACE_WORKERS, count(array_unique($numbers)), 'เลขที่จองไม่ซ้ำ: ' . implode(',', $numbers));
+    } finally {
+        t_race_cleanup($cars);
+    }
+}
+
+function test_race_same_new_phone_creates_one_customer(): void
+{
+    // รถคนละคัน (ไม่ล็อกคิวกัน) แต่เบอร์ใหม่เบอร์เดียวกัน → ต้องได้ลูกค้าแถวเดียว
+    $cars = [];
+    for ($i = 0; $i < T_RACE_WORKERS; $i++) {
+        $cars[] = t_make_car();
+    }
+    $phone = T_RACE_PHONE_PREFIX . '999';
+    try {
+        $results = t_race_run($cars, '2031-05-10 10:00:00', '2031-05-12 10:00:00', $phone);
+        $ok = array_filter($results, static fn(string $r): bool => strncmp($r, 'OK ', 3) === 0);
+        assert_same(T_RACE_WORKERS, count($ok), 'ทุกคันจองสำเร็จ: ' . json_encode($results, JSON_UNESCAPED_UNICODE));
+
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM customers WHERE phone = :p', ['p' => $phone]), 'ลูกค้าต้องมีแถวเดียว');
+        $in = implode(',', array_map('intval', $cars));
+        assert_same(1, (int) Database::value("SELECT COUNT(DISTINCT customer_id) FROM bookings WHERE car_id IN ($in)"), 'ทุกใบจองผูกกับลูกค้าคนเดียวกัน');
     } finally {
         t_race_cleanup($cars);
     }
