@@ -1,25 +1,42 @@
 <?php
-
 namespace App\Controllers;
 
-use App\Core\Controller;
-use App\Core\Response;
 use App\Models\Car;
-use App\Services\AbTrackService;
+use App\Models\CarType;
+use App\Services\AvailabilityService;
 
-/** หน้าแรก */
-class HomeController extends Controller
+final class HomeController
 {
-    public function index(): Response
+    /** หน้าแรก: รถทั้งหมด หรือ (ถ้าเลือกวันรับ–คืน) เฉพาะรถที่ว่างพร้อมราคา */
+    public function index(): void
     {
-        AbTrackService::trackOnce('view_home');
+        $pickup = normalize_datetime($_GET['pickup'] ?? '');
+        $return = normalize_datetime($_GET['return'] ?? '');
+        $type   = is_string($_GET['type'] ?? null) ? $_GET['type'] : '';
+        $searching = ($_GET['pickup'] ?? '') !== '' || ($_GET['return'] ?? '') !== '';
 
-        $cars = Car::allPublic();
-        return $this->view('public/home', [
+        $error = null;
+        $cars  = [];
+        if (!$searching) {
+            $cars = Car::allPublic();
+        } elseif ($pickup === null || $return === null) {
+            $error = 'กรุณาเลือกวันและเวลารับรถ–คืนรถให้ครบ';
+        } else {
+            $error = AvailabilityService::validatePeriod($pickup, $return);
+            if ($error === null) {
+                $cars = AvailabilityService::availableCars($pickup, $return, $type);
+            }
+        }
+
+        view('public/home', [
+            'title'     => 'เช่ารถ',
             'cars'      => $cars,
-            'totalCars' => count($cars),
-            'minPrice'  => Car::minAvailablePrice(),
-            'heroCar'   => Car::hero() ?: ($cars[0] ?? null),
+            'types'     => CarType::all(),
+            'pickup'    => $pickup,
+            'return'    => $return,
+            'type'      => $type,
+            'searching' => $searching,
+            'error'     => $error,
         ]);
     }
 }

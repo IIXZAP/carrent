@@ -1,42 +1,32 @@
 <?php
-
 namespace App\Controllers\Admin;
 
-use App\Core\Flash;
-use App\Core\Response;
-use App\Core\Session;
-use App\Services\AuthService;
+use App\Services\Auth;
 
-/** เข้า/ออกจากระบบหลังบ้าน */
-class AuthController extends AdminController
+final class AuthController
 {
-    public function showLogin(): Response
+    public function showLogin(): void
     {
-        if (AuthService::check()) {
-            return $this->redirect('admin/dashboard');
+        if (Auth::check()) {
+            redirect('/admin');
         }
-        return $this->view('admin/login', ['title' => 'เข้าสู่ระบบ']);
+        view('admin/login', ['title' => 'เข้าสู่ระบบ', 'email' => ''], 'layouts/public');
     }
 
-    public function login(): Response
+    public function login(): void
     {
-        $email = $this->request->str('email');
-        $pass  = (string) $this->request->post('password', '');
-
-        if (AuthService::attempt($email, $pass)) {
-            return $this->redirect('admin/dashboard');
+        $email = post('email');
+        if (!Auth::attempt($email, (string) ($_POST['password'] ?? ''))) {
+            flash('error', 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+            view('admin/login', ['title' => 'เข้าสู่ระบบ', 'email' => $email], 'layouts/public');
+            return;
         }
-        if (!Flash::has()) {
-            $this->flash('danger', 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-        }
-        return $this->redirect('admin/login');
+        redirect('/admin');
     }
 
-    public function logout(): Response
+    public function logout(): void
     {
-        AuthService::logout();
-        Session::start();
-        $this->flash('ok', 'ออกจากระบบเรียบร้อย');
-        return $this->redirect('admin/login');
+        Auth::logout();
+        redirect('/admin/login');
     }
 }

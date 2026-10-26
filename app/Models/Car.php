@@ -1,146 +1,149 @@
 <?php
-
 namespace App\Models;
 
 use App\Core\Database;
-use App\Core\Model;
 
-/** รถเช่า */
-final class Car extends Model
+final class Car
 {
-    protected static string $table = 'cars';
+    private const COLUMNS = [
+        'plate', 'province', 'brand', 'model', 'year', 'color', 'car_type_code', 'seats',
+        'gear', 'fuel', 'price_day', 'price_week', 'price_month',
+        'security_deposit', 'booking_deposit', 'status', 'description',
+    ];
 
-    /** รถที่แสดงหน้าเว็บลูกค้า (ไม่รวมที่ปิดใช้งาน) */
-    public static function findPublic(int $id): ?array
+    /** รถทั้งหมดสำหรับหลังบ้าน (ยกเว้นที่ลบแล้ว) */
+    public static function allForAdmin(): array
     {
-        return Database::one("SELECT * FROM cars WHERE id = :id AND status <> 'inactive'", [':id' => $id]);
+        return Database::all(
+            'SELECT c.*, t.label_th AS type_label
+               FROM cars c JOIN car_types t ON t.code = c.car_type_code
+              WHERE c.deleted_at IS NULL
+              ORDER BY c.sort_order, c.id'
+        );
     }
 
-    public static function allPublic(?string $type = null): array
+    /** รถที่โชว์หน้าเว็บลูกค้า */
+    public static function allPublic(): array
     {
-        $sql = "SELECT * FROM cars WHERE status <> 'inactive'";
-        $p   = [];
-        if ($type) {
-            $sql .= ' AND car_type = :t';
-            $p[':t'] = $type;
+        return Database::all(
+            "SELECT c.*, t.label_th AS type_label
+               FROM cars c JOIN car_types t ON t.code = c.car_type_code
+              WHERE c.deleted_at IS NULL AND c.status = 'available'
+              ORDER BY c.sort_order, c.price_day, c.id"
+        );
+    }
+
+    public static function find(int $id): ?array
+    {
+        return Database::one(
+            'SELECT c.*, t.label_th AS type_label
+               FROM cars c JOIN car_types t ON t.code = c.car_type_code
+              WHERE c.id = :id AND c.deleted_at IS NULL',
+            ['id' => $id]
+        );
+    }
+
+    public static function plateExists(string $plate, int $exceptId = 0): bool
+    {
+        return Database::value(
+            'SELECT 1 FROM cars WHERE plate = :plate AND id <> :id',
+            ['plate' => $plate, 'id' => $exceptId]
+        ) !== null;
+    }
+
+    public static function countByStatus(): array
+    {
+        $rows = Database::all(
+            'SELECT status, COUNT(*) AS n FROM cars WHERE deleted_at IS NULL GROUP BY status'
+        );
+        $out = ['available' => 0, 'maintenance' => 0, 'inactive' => 0];
+        foreach ($rows as $row) {
+            $out[$row['status']] = (int) $row['n'];
         }
-        return Database::all($sql . ' ORDER BY sort_order, price_day', $p);
+        return $out;
     }
 
-    /** รถทุกคัน (หลังบ้าน) */
-    public static function all(): array
+    public static function hasOpenBookings(int $id): bool
     {
-        return Database::all('SELECT * FROM cars ORDER BY sort_order, id');
+        return Database::value(
+            "SELECT 1 FROM bookings
+              WHERE car_id = :id AND status IN ('pending','confirmed','picked_up') LIMIT 1",
+            ['id' => $id]
+        ) !== null;
     }
 
-    /** รถที่ใช้งานอยู่ (ใช้เป็นตัวเลือกในฟอร์ม) */
-    public static function active(): array
-    {
-        return Database::all("SELECT * FROM cars WHERE status <> 'inactive' ORDER BY sort_order");
-    }
 
-    /** รายการสั้นๆ ไว้ทำตัวเลือกกรอง */
-    public static function options(): array
+    /** สถานะรถ (null = ไม่พบ/ถูกลบแล้ว) */
+    public static function statusOf(int $id): ?string
     {
-        return Database::all('SELECT id, brand, model, plate FROM cars ORDER BY sort_order');
+        $status = Database::value('SELECT status FROM cars WHERE id = :id AND deleted_at IS NULL', ['id' => $id]);
+        return $status === null ? null : (string) $status;
     }
 
     /**
-     * วันหมดอายุประกัน/พ.ร.บ./ภาษี และกำหนดเช็กระยะของรถทุกคัน (car_id => แถว)
-     * ข้อมูลมาจากงานประจำรถที่ยังค้างอยู่ (VIEW v_car_compliance)
+     * ล็อกแถวรถไว้จนจบ transaction — ใช้ก่อนตรวจรถว่าง+สร้างการจอง
+     * กันสองคำขอจองรถคันเดียวกันพร้อมกัน (ต้องเรียกหลัง Database::begin())
      */
-    public static function complianceMap(): array
+    public static function lockForUpdate(int $id): ?array
     {
-        $map = [];
-        foreach (Database::all('SELECT * FROM v_car_compliance') as $row) {
-            $map[(int) $row['car_id']] = $row;
+        return Database::one('SELECT * FROM cars WHERE id = :id AND deleted_at IS NULL FOR UPDATE', ['id' => $id]);
+    }
+
+    /**
+     * รถที่ว่างตลอดช่วง [from, to) (ช่วงที่ส่งมาควรขยายด้วยเวลาพักรถแล้ว)
+     * กติกาต้องตรงกับ AvailabilityService::isCarAvailable
+     */
+    public static function availableBetween(string $from, string $to, ?string $typeCode = null): array
+    {
+        $sql = "SELECT c.*, t.label_th AS type_label
+                  FROM cars c JOIN car_types t ON t.code = c.car_type_code
+                 WHERE c.deleted_at IS NULL AND c.status = 'available'
+                   AND NOT EXISTS (
+                         SELECT 1 FROM bookings b
+                          WHERE b.car_id = c.id AND b.status IN ('pending','confirmed','picked_up')
+                            AND b.pickup_at < :to1 AND b.return_at > :from1)
+                   AND NOT EXISTS (
+                         SELECT 1 FROM bookings o
+                          WHERE o.car_id = c.id AND o.status = 'picked_up' AND o.return_at < NOW())
+                   AND NOT EXISTS (
+                         SELECT 1 FROM car_blocks k
+                          WHERE k.car_id = c.id AND k.start_at < :to2 AND k.end_at > :from2)";
+        $params = ['from1' => $from, 'to1' => $to, 'from2' => $from, 'to2' => $to];
+        if ($typeCode !== null && $typeCode !== '') {
+            $sql .= ' AND c.car_type_code = :type';
+            $params['type'] = $typeCode;
         }
-        return $map;
+        return Database::all($sql . ' ORDER BY c.sort_order, c.price_day, c.id', $params);
     }
 
-    /** วันหมดอายุ/กำหนดเช็กระยะของรถคันเดียว (insurance_expire, act_expire, tax_expire, next_service_at, next_service_km) */
-    public static function compliance(int $id): array
+    public static function create(array $data): int
     {
-        $row = Database::one(
-            'SELECT insurance_expire, act_expire, tax_expire, next_service_at, next_service_km
-             FROM v_car_compliance WHERE car_id = :c',
-            [':c' => $id]
-        );
-        return $row ?: [];
+        $cols = implode(', ', self::COLUMNS);
+        $marks = ':' . implode(', :', self::COLUMNS);
+        return Database::insert("INSERT INTO cars ($cols) VALUES ($marks)", self::pick($data));
     }
 
-    public static function activeCount(): int
+    public static function update(int $id, array $data): void
     {
-        return (int) Database::value("SELECT COUNT(*) FROM cars WHERE status <> 'inactive'");
+        $sets = [];
+        foreach (self::COLUMNS as $col) {
+            $sets[] = "$col = :$col";
+        }
+        $params = self::pick($data) + ['id' => $id];
+        Database::run('UPDATE cars SET ' . implode(', ', $sets) . ' WHERE id = :id', $params);
     }
 
-    public static function minAvailablePrice(): float
+    public static function softDelete(int $id): void
     {
-        return (float) Database::value("SELECT MIN(price_day) FROM cars WHERE status = 'available'");
+        Database::run('UPDATE cars SET deleted_at = NOW() WHERE id = :id', ['id' => $id]);
     }
 
-    /** รถที่ใช้เป็นภาพเด่นหน้าแรก (คันที่ 3 ที่มีรูป ถ้าไม่มีใช้คันแรก) */
-    public static function hero(): ?array
+    private static function pick(array $data): array
     {
-        return Database::one(
-            "SELECT * FROM cars WHERE cover_image IS NOT NULL AND status = 'available'
-             ORDER BY sort_order LIMIT 1 OFFSET 2"
-        );
-    }
-
-    public static function status(int $id): ?string
-    {
-        $s = Database::value('SELECT status FROM cars WHERE id = :id', [':id' => $id]);
-        return $s === false ? null : (string) $s;
-    }
-
-    public static function mileage(int $id): int
-    {
-        return (int) Database::value('SELECT mileage FROM cars WHERE id = :c', [':c' => $id]);
-    }
-
-    public static function setMileage(int $id, int $km): void
-    {
-        self::updateById($id, ['mileage' => $km]);
-    }
-
-    public static function setStatus(int $id, string $status): void
-    {
-        self::updateById($id, ['status' => $status]);
-    }
-
-    /** ล็อกแถวรถไว้จนจบทรานแซกชัน — คนที่จองรถคันเดียวกันพร้อมกันต้องรอคิว */
-    public static function lock(int $id): void
-    {
-        Database::one('SELECT id FROM cars WHERE id = :c FOR UPDATE', [':c' => $id]);
-    }
-
-    /** การจองที่ยังไม่จบของรถคันนี้ (ใช้กันไม่ให้ปิดใช้งานรถที่ยังมีงานค้าง) */
-    public static function openBookingCount(int $id): int
-    {
-        return (int) Database::value(
-            "SELECT COUNT(*) FROM bookings WHERE car_id = :c AND status IN ('pending','confirmed','picked_up')",
-            [':c' => $id]
-        );
-    }
-
-    /** การจองที่รถกำลังออกงานอยู่ (แสดงในหน้ารายการรถ) */
-    public static function activeRental(int $id): ?array
-    {
-        return Database::one(
-            "SELECT booking_no, return_at FROM bookings
-             WHERE car_id = :c AND status = 'picked_up' ORDER BY return_at LIMIT 1",
-            [':c' => $id]
-        );
-    }
-
-    public static function statusCounts(): array
-    {
-        return Database::all('SELECT status, COUNT(*) n FROM cars GROUP BY status');
-    }
-
-    public static function sitemapRows(): array
-    {
-        return Database::all("SELECT id, updated_at FROM cars WHERE status <> 'inactive' ORDER BY sort_order");
+        $out = [];
+        foreach (self::COLUMNS as $col) {
+            $out[$col] = $data[$col] ?? null;
+        }
+        return $out;
     }
 }

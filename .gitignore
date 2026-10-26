@@ -1,4 +1,7 @@
 node_modules/
+config/config.local.php
+
+# ไฟล์ที่ผู้ใช้อัปโหลด/ระบบสร้าง — เก็บเฉพาะโฟลเดอร์ (.gitkeep) ไม่เก็บเนื้อหา
 storage/backups/*
 !storage/backups/.gitkeep
 storage/private/*
@@ -8,4 +11,3 @@ uploads/slips/*
 uploads/inspections/*
 uploads/docs/*
 !uploads/*/.gitkeep
-storage/.installed

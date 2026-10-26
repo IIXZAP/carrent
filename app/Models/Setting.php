@@ -1,12 +1,9 @@
 <?php
-
 namespace App\Models;
 
 use App\Core\Database;
 
-/**
- * ตั้งค่าระบบแบบ key/value (ตาราง settings) — เก็บแคชในหน่วยความจำ 1 request
- */
+/** ตั้งค่าระบบ (key/value) — โหลดครั้งเดียวต่อคำขอ */
 final class Setting
 {
     private static ?array $cache = null;
@@ -15,34 +12,25 @@ final class Setting
     {
         if (self::$cache === null) {
             self::$cache = [];
-            foreach (Database::all('SELECT skey, svalue FROM settings') as $r) {
-                self::$cache[$r['skey']] = $r['svalue'];
+            foreach (Database::all('SELECT skey, svalue FROM settings') as $row) {
+                self::$cache[$row['skey']] = $row['svalue'];
             }
         }
         return self::$cache;
     }
 
-    /** ค่าว่าง/ไม่มี → คืน $default */
-    public static function get(string $key, $default = '')
+    public static function get(string $key, string $default = ''): string
     {
-        $s = self::all();
-        return array_key_exists($key, $s) && $s[$key] !== null && $s[$key] !== '' ? $s[$key] : $default;
+        $all = self::all();
+        return isset($all[$key]) ? (string) $all[$key] : $default;
     }
 
-    public static function set(string $key, $value): void
+    public static function set(string $key, string $value): void
     {
-        Database::exec(
-            'INSERT INTO settings (skey, svalue) VALUES (:k, :v)
-             ON DUPLICATE KEY UPDATE svalue = VALUES(svalue)',
-            [':k' => $key, ':v' => (string) $value]
+        Database::run(
+            'INSERT INTO settings (skey, svalue) VALUES (:k, :v) ON DUPLICATE KEY UPDATE svalue = :v2',
+            ['k' => $key, 'v' => $value, 'v2' => $value]
         );
-        if (self::$cache !== null) {
-            self::$cache[$key] = (string) $value;
-        }
-    }
-
-    public static function flush(): void
-    {
         self::$cache = null;
     }
 }

@@ -1,15 +1,17 @@
 <?php
-/**
- * Front controller — ทุกคำขอเข้าที่ไฟล์นี้ (ผ่าน .htaccess)
- * จากนั้น app/routes.php จับคู่ URL กับ controller
- *
- * โครงสร้าง MVC:
- *   app/Core         ตัวขับเคลื่อน (Router, Request, Response, View, Database)
- *   app/Models       เข้าถึงข้อมูลด้วย PDO
- *   app/Services     กฎธุรกิจ (คิดราคา ตรวจรถว่าง ชำระเงิน LINE ฯลฯ)
- *   app/Controllers  รับคำขอ → เรียก Model/Service → ส่งให้ View
- *   app/Views        หน้าเว็บ (PHP + Tailwind CSS)
- */
-require_once __DIR__ . '/app/bootstrap.php';
+/** Front controller — ทุกคำขอเข้าที่นี่ */
 
-\App\Core\Application::run();
+// php -S localhost:8000 index.php : ให้ไฟล์ static (css/js/img) ออกตามปกติ
+if (PHP_SAPI === 'cli-server') {
+    $file = __DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if (is_file($file) && basename($file) !== 'index.php') {
+        return false;
+    }
+}
+
+require __DIR__ . '/app/bootstrap.php';
+
+$router = new App\Core\Router();
+require __DIR__ . '/app/routes.php';
+
+$router->dispatch($_SERVER['REQUEST_METHOD'], request_path());

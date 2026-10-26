@@ -1,11 +1,4 @@
 User-agent: *
 Disallow: /admin/
 Disallow: /uploads/
-Disallow: /api/
-Disallow: /track
-Disallow: /booking/
-Disallow: /sign
-Disallow: /liff
 Allow: /
-
-Sitemap: /sitemap.xml
