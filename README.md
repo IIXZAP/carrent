@@ -10,7 +10,7 @@ index.php                 Front controller — ทุกคำขอเข้า
 .htaccess                 rewrite ทุก URL ที่ไม่ใช่ไฟล์จริง → index.php, ปิดโฟลเดอร์ภายใน
 config/config.php         ค่าตั้งต้นที่ต้องแก้ตอนติดตั้ง (ฐานข้อมูล, BASE_URL, เขตเวลา)
 cron/daily.php            งานรายวัน (บางมาก: ตรวจรหัสแล้วเรียก CronService)
-database/                 schema.sql + update-v2..v5.sql + seed.sql
+database/                 schema.sql (โครงสร้างทั้งหมด ไฟล์เดียว) + seed.sql (ข้อมูลตั้งต้น)
 assets/                   css (app.css ที่ build แล้ว), js, img
 uploads/                  รูปรถ สลิป รูปตรวจสภาพรถ (เปิดผ่านเว็บได้ แต่ห้ามรันสคริปต์)
 storage/                  ไฟล์สำรองและเอกสารลูกค้า (ปิดไม่ให้เปิดผ่านเว็บ)
@@ -59,14 +59,26 @@ app/
 
 ## ติดตั้ง
 
-1. สร้างฐานข้อมูล MySQL/MariaDB (utf8mb4) แล้ว import ตามลำดับ:
-   `database/schema.sql` → `update-v2.sql` → `update-v3.sql` → `update-v4.sql` → `update-v5.sql` → `ab-events.sql` → `update-rules.sql` → `seed.sql`
-   (ถ้า import ด้วยบรรทัดคำสั่งให้ใส่ `--default-character-set=utf8mb4`)
+1. สร้างฐานข้อมูล **MySQL 8.0+ หรือ MariaDB 10.4+** (utf8mb4) แล้ว import 2 ไฟล์ตามลำดับ:
+   `database/schema.sql` → `database/seed.sql`
+   (`schema.sql` ลบและสร้างตารางใหม่ทั้งหมด — ใช้ติดตั้งใหม่เท่านั้น ห้ามรันบนฐานข้อมูลที่มีข้อมูลจริง
+   ถ้า import ด้วยบรรทัดคำสั่งให้ใส่ `--default-character-set=utf8mb4`)
 2. แก้ `config/config.php` — `DB_HOST / DB_NAME / DB_USER / DB_PASS` (ระบบตรวจ `BASE_URL` เองจากตำแหน่งไฟล์)
 3. อัปโหลดทั้งโปรเจกต์ (ไม่ต้องอัป `node_modules/`) ให้ Apache/LiteSpeed เปิด `mod_rewrite` ได้
 4. เปิด `https://โดเมน/check` ตรวจการติดตั้ง แล้วเข้า `https://โดเมน/admin/login`
    ผู้ใช้เริ่มต้น `admin@thonglorcarrent.com` / `Thonglor@2026` — **เปลี่ยนรหัสผ่านทันที**
 5. ตั้ง cron วันละครั้งตามคำสั่งที่หน้า หลังบ้าน → ตั้งค่า → Cron
+
+## ฐานข้อมูล
+
+- **Foreign key ครบ** — การเงิน/เอกสาร/หลักฐาน (`payments`, `documents`, `inspections`, `signatures`) ใช้ `RESTRICT`
+  ลบการจองแล้วหลักฐานไม่หายตาม
+- **CHECK** — ยอดเงินไม่ติดลบ, คืนรถหลังรับรถ, ขีดน้ำมัน 0–8, ไมล์คืน ≥ ไมล์รับ, ปีรถ 1990–2100 (ค.ศ.)
+- **ประเภทรถ** อยู่ในตาราง `car_types` — เพิ่ม/แก้/ปิดได้ที่ หลังบ้าน → ประเภทรถ ไม่ต้องแก้โค้ด
+- **วันหมดอายุประกัน/พ.ร.บ./ภาษี/เช็กระยะ** เก็บที่ตาราง `maintenances` ที่เดียว
+  (กรอกในฟอร์มรถได้เหมือนเดิม ระบบบันทึกเป็นงานประจำรถให้) ดูสรุปต่อคันจาก VIEW `v_car_compliance`
+- **เลขที่การจอง/ลูกค้า/เอกสาร** มาจากตาราง `sequences` (เพิ่มเลขแบบ atomic — ไม่ซ้ำแม้จองพร้อมกัน)
+- ออกแบบให้ใช้ได้ทั้ง MySQL และ MariaDB (ทดสอบกับ MySQL 8.0 และ MariaDB 10.11)
 
 ## Tailwind CSS
 
@@ -89,7 +101,7 @@ npm run build      # หรือ npm run watch ระหว่างพัฒ�
 | หน้าลูกค้า | `/` · `/cars` · `/cars/{id}` · `/booking` (POST) · `/booking/success` · `/track` · `/how-to` · `/faq` · `/contact` · `/terms` |
 | เซ็นเอกสาร / LINE | `/sign` · `/liff` · `/liff/api` · `/line/webhook` |
 | ระบบ | `/sitemap.xml` · `/health` · `/check` · `/api/quote` · `/api/track` |
-| หลังบ้าน | `/admin/login` · `/admin/dashboard` · `/admin/bookings[/{id}]` · `/admin/calendar` · `/admin/payments` · `/admin/cars` · `/admin/customers` · `/admin/maintenance` · `/admin/documents` · `/admin/reports` · `/admin/monthly-report` · `/admin/ab-report` · `/admin/line` · `/admin/settings` · `/admin/users` · `/admin/backups` · `/admin/health` |
+| หลังบ้าน | `/admin/login` · `/admin/dashboard` · `/admin/bookings[/{id}]` · `/admin/calendar` · `/admin/payments` · `/admin/cars` · `/admin/car-types` · `/admin/customers` · `/admin/maintenance` · `/admin/documents` · `/admin/reports` · `/admin/monthly-report` · `/admin/ab-report` · `/admin/line` · `/admin/settings` · `/admin/users` · `/admin/backups` · `/admin/health` |
 
 ที่อยู่แบบเดิม (`/cars.php`, `/admin/booking-view.php?id=1`, ...) ยังใช้ได้ — ระบบตอบ 301 ไปที่อยู่ใหม่ให้
 (ส่วน `/line/webhook.php` และ `/liff/api.php` คงรับ POST ไว้ เพราะระบบภายนอกอาจยังเรียกที่อยู่เดิม)

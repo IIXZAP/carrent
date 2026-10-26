@@ -135,8 +135,9 @@ class InstallController extends Controller
             $pdo = $this->connect();
             $this->chk('เชื่อมต่อฐานข้อมูล ' . DB_NAME, true, 'ผ่าน (user: ' . DB_USER . ')');
 
-            $need = ['users', 'customers', 'cars', 'bookings', 'payments', 'documents', 'maintenances',
-                     'car_blocks', 'settings', 'activity_logs', 'notifications'];
+            $need = ['users', 'customers', 'car_types', 'cars', 'bookings', 'payments', 'documents', 'maintenances',
+                     'car_blocks', 'settings', 'activity_logs', 'notifications', 'sequences', 'customer_documents',
+                     'inspections', 'inspection_photos', 'signatures', 'line_events', 'ab_events'];
             $have = $pdo->query('SHOW TABLES')->fetchAll(\PDO::FETCH_COLUMN);
             $miss = array_diff($need, $have);
             $this->chk('ตารางครบ ' . count($need) . ' ตาราง', empty($miss),
@@ -172,7 +173,7 @@ class InstallController extends Controller
             $this->chk('รูปรถแสดงผลได้ ' . $okCars . '/' . count($carsAll) . ' คัน', !$noDb && !$noFile,
                 (!$noDb && !$noFile) ? 'ผ่าน'
                     : ($noDb
-                        ? 'ฐานข้อมูลยังไม่รู้จักไฟล์รูป — ต้อง import database/update-v2.sql ใน phpMyAdmin. รถที่ยังไม่มีรูป: ' . implode(', ', array_slice($noDb, 0, 4))
+                        ? 'รถบางคันยังไม่มีรูปหน้าปก (ถ้าเพิ่ง import seed.sql ให้ตรวจว่าอัปโหลดโฟลเดอร์ uploads/cars ครบ). รถที่ยังไม่มีรูป: ' . implode(', ', array_slice($noDb, 0, 4))
                         : 'ฐานข้อมูลชี้ไปไฟล์ที่ไม่มีบนเซิร์ฟเวอร์ — อัปโหลด uploads/cars/ ไม่ครบ: ' . implode(' | ', array_slice($noFile, 0, 3))));
             return true;
         } catch (\Throwable $e) {

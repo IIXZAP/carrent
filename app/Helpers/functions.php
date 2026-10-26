@@ -250,14 +250,16 @@ function payment_status_label(string $s): array
 
 function car_type_label(string $t): string
 {
-    $labels = [
-        'eco'    => 'อีโคคาร์',
-        'sedan'  => 'รถเก๋ง',
-        'suv'    => 'SUV',
-        'pickup' => 'กระบะ',
-        'van'    => 'รถตู้',
-    ];
-    return $labels[$t] ?? $t;
+    return \App\Models\CarType::label($t);
+}
+
+/**
+ * ตัวเลือกประเภทรถสำหรับ dropdown (code => ป้ายชื่อ)
+ * $keep = ประเภทที่ปิดใช้งานแล้วแต่ยังต้องแสดง (เช่น รถคันที่กำลังแก้ใช้ประเภทนี้อยู่)
+ */
+function car_type_options(?string $keep = null): array
+{
+    return \App\Models\CarType::options($keep);
 }
 
 /** ระดับน้ำมันเป็นข้อความ (ระบบเก็บเป็นขีด 0–8) */

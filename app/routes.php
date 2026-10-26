@@ -157,6 +157,9 @@ return static function (Router $r): void {
                 $r->post('/line', [Admin\LineController::class, 'update']);
                 $r->get('/settings', [Admin\SettingController::class, 'index']);
                 $r->post('/settings', [Admin\SettingController::class, 'update']);
+                $r->get('/car-types', [Admin\CarTypeController::class, 'index']);
+                $r->post('/car-types/save', [Admin\CarTypeController::class, 'save']);
+                $r->post('/car-types/delete', [Admin\CarTypeController::class, 'delete']);
                 $r->get('/users', [Admin\UserController::class, 'index']);
                 $r->post('/users/save', [Admin\UserController::class, 'save']);
                 $r->post('/users/delete', [Admin\UserController::class, 'delete']);

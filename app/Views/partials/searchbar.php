@@ -47,8 +47,8 @@ $iconWrap = 'relative [&>svg]:pointer-events-none [&>svg]:absolute [&>svg]:left-
       <div class="<?= $iconWrap ?>"><?= icon('car') ?>
         <select id="type" name="type">
           <option value="">ทั้งหมด</option>
-          <?php foreach (['eco', 'sedan', 'suv', 'pickup', 'van'] as $t): ?>
-            <option value="<?= $t ?>"<?= selected($sbType === $t) ?>><?= e(car_type_label($t)) ?></option>
+          <?php foreach (car_type_options($sbType) as $t => $label): ?>
+            <option value="<?= e($t) ?>"<?= selected($sbType === $t) ?>><?= e($label) ?></option>
           <?php endforeach; ?>
         </select>
       </div>
