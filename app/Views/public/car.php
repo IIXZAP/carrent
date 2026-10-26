@@ -60,7 +60,10 @@
   <?php endif; ?>
   <?php if ($quote !== null): ?>
     <?php require __DIR__ . '/../partials/quote_box.php'; ?>
-    <p class="mt-4 text-sm text-slate-500">ระบบจองออนไลน์จะเปิดในขั้นถัดไป</p>
+    <a class="btn btn-primary mt-4" href="<?= e(url('/booking') . '?' . http_build_query([
+        'car' => $car['id'], 'pickup' => input_datetime($pickup), 'return' => input_datetime($return),
+        'addons' => $selected, 'km' => $km > 0 ? $km : '',
+    ])) ?>">จองรถคันนี้</a>
   <?php endif; ?>
 </div>
 

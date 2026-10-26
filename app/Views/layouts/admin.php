@@ -14,6 +14,7 @@
       <a href="<?= e(url('/admin')) ?>" class="font-semibold">หลังบ้าน</a>
       <nav class="flex gap-4 text-sm text-slate-300">
         <a href="<?= e(url('/admin')) ?>" class="hover:text-white">ภาพรวม</a>
+        <a href="<?= e(url('/admin/bookings')) ?>" class="hover:text-white">การจอง</a>
         <a href="<?= e(url('/admin/cars')) ?>" class="hover:text-white">รถ</a>
       </nav>
       <div class="ml-auto flex items-center gap-3 text-sm">

@@ -17,6 +17,12 @@
   .badge-available { @apply bg-green-100 text-green-800; }
   .badge-maintenance { @apply bg-amber-100 text-amber-800; }
   .badge-inactive { @apply bg-slate-200 text-slate-600; }
+  .badge-pending { @apply bg-amber-100 text-amber-800; }
+  .badge-confirmed { @apply bg-blue-100 text-blue-800; }
+  .badge-picked_up { @apply bg-indigo-100 text-indigo-800; }
+  .badge-returned { @apply bg-teal-100 text-teal-800; }
+  .badge-completed { @apply bg-green-100 text-green-800; }
+  .badge-cancelled { @apply bg-red-100 text-red-800; }
   .alert { @apply rounded-lg px-4 py-3 text-sm mb-4; }
   .alert-success { @apply bg-green-50 text-green-800 border border-green-200; }
   .alert-error { @apply bg-red-50 text-red-800 border border-red-200; }

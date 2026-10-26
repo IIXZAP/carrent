@@ -10,6 +10,7 @@ final class DashboardController
         view('admin/dashboard', [
             'title'  => 'ภาพรวม',
             'counts' => Car::countByStatus(),
+            'bookingCounts' => \App\Models\Booking::countByStatus(),
         ], 'layouts/admin');
     }
 }

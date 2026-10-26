@@ -8,6 +8,9 @@ final class Database
 {
     private static ?PDO $pdo = null;
 
+    /** ความลึกของ transaction ที่ซ้อนกัน (ชั้นในใช้ SAVEPOINT) */
+    private static int $depth = 0;
+
     public static function pdo(): PDO
     {
         if (self::$pdo !== null) {
@@ -54,20 +57,44 @@ final class Database
         return (int) self::pdo()->lastInsertId();
     }
 
+    /** เริ่ม transaction — เรียกซ้อนได้ (ชั้นในใช้ SAVEPOINT) เพื่อให้เทสต์ครอบด้วย transaction แล้ว rollback ได้ */
     public static function begin(): void
     {
-        self::pdo()->beginTransaction();
+        if (self::$depth === 0) {
+            self::pdo()->beginTransaction();
+        } else {
+            self::pdo()->exec('SAVEPOINT sp' . self::$depth);
+        }
+        self::$depth++;
     }
 
     public static function commit(): void
     {
-        self::pdo()->commit();
+        if (self::$depth === 0) {
+            throw new \LogicException('commit โดยไม่มี transaction');
+        }
+        self::$depth--;
+        if (self::$depth === 0) {
+            self::pdo()->commit();
+        } else {
+            self::pdo()->exec('RELEASE SAVEPOINT sp' . self::$depth);
+        }
     }
 
+    /** ย้อนกลับชั้นล่าสุด (ไม่มี transaction อยู่ = ไม่ทำอะไร) */
     public static function rollBack(): void
     {
-        if (self::pdo()->inTransaction()) {
-            self::pdo()->rollBack();
+        if (self::$depth === 0) {
+            return;
         }
+        self::$depth--;
+        if (self::$depth === 0) {
+            if (self::pdo()->inTransaction()) {
+                self::pdo()->rollBack();
+            }
+            return;
+        }
+        self::pdo()->exec('ROLLBACK TO SAVEPOINT sp' . self::$depth);
+        self::pdo()->exec('RELEASE SAVEPOINT sp' . self::$depth);
     }
 }

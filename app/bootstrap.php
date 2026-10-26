@@ -24,6 +24,10 @@ error_reporting(E_ALL);
 
 set_exception_handler(static function (Throwable $e): void {
     error_log((string) $e);
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, get_class($e) . ': ' . $e->getMessage() . "\n");
+        exit(1);
+    }
     http_response_code(500);
     if (config('debug')) {
         echo '<pre>' . e((string) $e) . '</pre>';

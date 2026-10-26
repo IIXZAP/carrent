@@ -95,6 +95,19 @@ function old(array $data, string $key, $default = '')
     return $data[$key] ?? $default;
 }
 
+/** IP ของผู้ใช้ — เชื่อ X-Forwarded-For (ตัวซ้ายสุด) เฉพาะเมื่อ config trust_proxy เปิดไว้ */
+function client_ip(): string
+{
+    $remote = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
+    if (config('trust_proxy') && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $first = trim(explode(',', (string) $_SERVER['HTTP_X_FORWARDED_FOR'])[0]);
+        if (filter_var($first, FILTER_VALIDATE_IP) !== false) {
+            return $first;
+        }
+    }
+    return $remote;
+}
+
 /** แสดงเงิน: ไม่มีสตางค์ไม่โชว์ทศนิยม */
 function money($amount): string
 {

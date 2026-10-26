@@ -22,12 +22,19 @@ final class QuoteService
         ];
     }
 
-    /** ใบเสนอราคาของรถคันหนึ่ง ($rawAddons = ค่าดิบจากฟอร์ม) */
-    public static function forCar(array $car, string $pickup, string $return, array $rawAddons = [], float $discount = 0.0, float $km = 0.0): array
+    /**
+     * ใบเสนอราคาของรถคันหนึ่ง ($rawAddons = ค่าดิบจากฟอร์ม)
+     * $vat: null = ตามตั้งค่าร้าน, true/false = บังคับ (พนักงานเลือกเองตอนสร้างการจองหลังบ้าน)
+     */
+    public static function forCar(array $car, string $pickup, string $return, array $rawAddons = [], float $discount = 0.0, float $km = 0.0, ?bool $vat = null): array
     {
         $catalog  = Addon::activeCatalog();
         $selected = self::cleanAddons($rawAddons, $catalog);
-        return PricingService::quote($car, $catalog, $pickup, $return, $selected, $discount, max(0.0, $km), self::rules());
+        $rules    = self::rules();
+        if ($vat !== null) {
+            $rules['vat_enabled'] = $vat;
+        }
+        return PricingService::quote($car, $catalog, $pickup, $return, $selected, $discount, max(0.0, $km), $rules);
     }
 
     /** เก็บเฉพาะ code ที่มีขายจริง จำนวน 0–10 */
