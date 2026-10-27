@@ -41,12 +41,12 @@
           <?= icon('phone') ?> <?= e(setting('phone')) ?></a>
       </div>
     <?php else: ?>
-      <div class="car-grid">
+      <ul class="hm-catalogue">
         <?php foreach ($cars as $c):
             $link = url('/cars/' . (int) $c['id']) . ($searching ? period_query($pickup, $ret) : ''); ?>
           <?= \App\Core\View::partial('partials/car_card', ['c' => $c, 'link' => $link, 'showTotal' => $searching]) ?>
         <?php endforeach; ?>
-      </div>
+      </ul>
     <?php endif; ?>
   </div>
 </section>

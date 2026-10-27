@@ -15,8 +15,8 @@ $rt = substr($sbRet, 11, 5) ?: '10:00';
 
 $iconWrap = 'relative [&>svg]:pointer-events-none [&>svg]:absolute [&>svg]:left-[13px] [&>svg]:top-1/2 [&>svg]:z-[1] [&>svg]:h-[17px] [&>svg]:w-[17px] [&>svg]:-translate-y-1/2 [&>svg]:text-brand [&_input]:pl-[37px] [&_select]:pl-[37px]';
 ?>
-<form class="relative z-[5] mt-[18px] rounded-[18px] bg-white p-4 shadow-lift lg:-mt-[26px] lg:p-5" action="<?= e(url('/cars')) ?>" method="get" id="searchForm">
-  <div class="mb-3 flex items-center gap-[7px] text-[0.95rem] font-bold text-dark"><?= icon('search', 'h-[17px] w-[17px] text-brand') ?> ค้นหารถว่าง</div>
+<form class="hm-search" action="<?= e(url('/cars')) ?>" method="get" id="searchForm">
+  <div class="hm-title"><?= icon('search', 'h-[17px] w-[17px]') ?> ค้นหารถว่าง</div>
   <div class="grid grid-cols-2 gap-2.5 sm:grid-cols-[1.4fr_0.9fr] sm:gap-3 lg:grid-cols-[1.25fr_1fr_1.25fr_1fr_1.05fr_auto] lg:items-end">
     <div class="field col-span-2 sm:col-span-1 sm:mb-0">
       <label for="pd">วันรับรถ</label>

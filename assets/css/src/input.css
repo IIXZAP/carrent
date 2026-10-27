@@ -307,3 +307,170 @@
   body { background: #fff !important; }
   .table th { background: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Hallmark · macrostructure: Catalogue (masthead + ruled search strip + ruled fleet rows) · tone: editorial · anchor hue: amber 62°
+ * theme: custom (paper oklch(97.5% .010 85) · ink oklch(22% .035 255) · accent oklch(72% .155 62) · Noto Serif Thai + Sarabun + IBM Plex Mono)
+ * axes: light / roman-serif / warm · nav: masthead util-bar + ruled bar · footer: statement
+ * pre-emit critique: P4 H4 E4 S4 R5 V5 — public pages only (body.hm); admin untouched */
+/* ============================================================
+   HALLMARK · ธีมหน้าลูกค้า (ใช้เมื่อ <body class="hm">) — หลังบ้านไม่ใช้
+   macrostructure: Catalogue · tone: editorial
+   ทุกสี/ฟอนต์อ้างผ่านโทเคน --hm-* เท่านั้น ห้ามใส่ค่าดิบในคลาสด้านล่าง
+   ============================================================ */
+@layer base {
+  .hm {
+    --hm-paper: oklch(97.5% 0.010 85);
+    --hm-paper-2: oklch(94.5% 0.014 85);
+    --hm-ink: oklch(22% 0.035 255);
+    --hm-ink-2: oklch(42% 0.03 255);
+    --hm-muted: oklch(52% 0.02 255);
+    --hm-rule: oklch(86% 0.014 85);
+    --hm-accent: oklch(72% 0.155 62);
+    --hm-accent-ink: oklch(50% 0.13 55);
+    --hm-focus: oklch(55% 0.17 255);
+    --hm-display: 'Noto Serif Thai', 'Sarabun', Georgia, serif;
+    --hm-body: 'Sarabun', system-ui, sans-serif;
+    --hm-mono: 'IBM Plex Mono', ui-monospace, 'Sarabun', monospace;
+    background: var(--hm-paper);
+    color: var(--hm-ink);
+    font-family: var(--hm-body);
+    overflow-x: clip;
+  }
+  html:has(.hm) { overflow-x: clip; }
+  .hm h1, .hm h2, .hm h3, .hm h4 { font-family: var(--hm-display); font-style: normal; color: var(--hm-ink); letter-spacing: 0; overflow-wrap: anywhere; min-width: 0; }
+  .hm h1 { font-weight: 700; line-height: 1.18; }
+  .hm a { color: inherit; }
+  .hm :focus-visible { outline: 2px solid var(--hm-focus); outline-offset: 2px; }
+  .hm input:not([type='checkbox']):not([type='radio']):not([type='file']), .hm select, .hm textarea { border-radius: 0; border-color: var(--hm-ink); background: var(--hm-paper); }
+  .hm input:focus, .hm select:focus, .hm textarea:focus { border-color: var(--hm-ink); box-shadow: none; outline: 2px solid var(--hm-focus); outline-offset: 1px; }
+  @media (prefers-reduced-motion: reduce) { .hm * { transition-duration: 0.01ms !important; scroll-behavior: auto !important; } }
+}
+
+@layer components {
+  /* ---------- ปุ่ม ---------- */
+  .hm .btn { border-radius: 0; background: var(--hm-ink); color: var(--hm-paper); border: 1px solid var(--hm-ink); font-weight: 600; transition: background-color .15s, color .15s, border-color .15s; white-space: nowrap; }
+  .hm .btn:hover { background: var(--hm-accent); border-color: var(--hm-accent); color: var(--hm-ink); }
+  .hm .btn:active { background: var(--hm-accent-ink); border-color: var(--hm-accent-ink); color: var(--hm-paper); }
+  .hm .btn[disabled], .hm .btn:disabled { opacity: .45; }
+  .hm .btn-ghost { background: transparent; color: var(--hm-ink); }
+  .hm .btn-ghost:hover { background: var(--hm-ink); border-color: var(--hm-ink); color: var(--hm-paper); }
+  .hm .btn-accent { background: var(--hm-accent); border-color: var(--hm-accent); color: var(--hm-ink); }
+  .hm .btn-accent:hover { background: var(--hm-ink); border-color: var(--hm-ink); color: var(--hm-paper); }
+
+  /* ---------- กล่อง/ตาราง/ป้าย (ไม่มีเงา มีแต่เส้น) ---------- */
+  .hm .panel { border-radius: 0; box-shadow: none; background: var(--hm-paper); border: 1px solid var(--hm-rule); border-top: 2px solid var(--hm-ink); }
+  .hm .table th { background: transparent; color: var(--hm-ink-2); border-bottom: 1px solid var(--hm-ink); }
+  .hm .table td { border-bottom-color: var(--hm-rule); }
+  .hm .sum { border-radius: 0; border-color: var(--hm-ink); background: var(--hm-paper); }
+  .hm .sum-row { border-bottom-color: var(--hm-rule); }
+  .hm .sum-row.total { background: var(--hm-paper-2); color: var(--hm-ink); }
+  .hm .badge, .hm .alert, .hm .media-card, .hm .ic-box { border-radius: 0; }
+  .hm .ic-box { background: transparent; border: 1px solid var(--hm-ink); color: var(--hm-ink); }
+  .hm .eyebrow { color: var(--hm-accent-ink); letter-spacing: .12em; }
+  .hm .bg-gradient-to-b { background-image: none; background-color: var(--hm-paper-2); }
+  .hm .bg-white, .hm .bg-surface { background-color: var(--hm-paper); }
+  .hm .border-line, .hm .border-line-2 { border-color: var(--hm-rule); }
+  .hm .text-muted { color: var(--hm-muted); }
+  .hm .text-ink-2 { color: var(--hm-ink-2); }
+  .hm .text-accent-600 { color: var(--hm-accent-ink); }
+
+  /* ---------- หัวเว็บ: แถบข้อมูล + ชื่อร้านกับเมนูใต้เส้น (เต็มความกว้างจอ) ---------- */
+  .hm-head { position: sticky; top: 0; z-index: 100; background: var(--hm-paper); border-bottom: 1px solid var(--hm-ink); }
+  .hm-util { display: none; justify-content: space-between; gap: 16px; padding: 6px 32px; font-size: .78rem; color: var(--hm-ink-2); border-bottom: 1px solid var(--hm-rule); }
+  .hm-util a { font-family: var(--hm-mono); font-weight: 500; color: var(--hm-ink); }
+  .hm-bar { display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 0 16px; }
+  .hm-brand { display: flex; align-items: center; min-height: 44px; flex: 1 1 auto; min-width: 0; }
+  .hm-nav { display: none; position: fixed; inset: 61px 0 auto 0; flex-direction: column; background: var(--hm-paper); border-bottom: 1px solid var(--hm-ink); padding: 8px 16px 18px; max-height: calc(100vh - 61px); overflow-y: auto; }
+  .hm-nav[data-open='true'] { display: flex; }
+  .hm-nav a { padding: 14px 4px; border-bottom: 1px solid var(--hm-rule); font-weight: 500; white-space: nowrap; }
+  .hm-nav a[aria-current='page'] { font-weight: 700; box-shadow: inset 3px 0 0 var(--hm-accent); padding-left: 12px; }
+  .hm-nav .hm-cta { margin-top: 14px; justify-content: center; border-bottom: 0; }
+  .hm-iconbtn { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border: 1px solid var(--hm-ink); background: transparent; color: var(--hm-ink); cursor: pointer; padding: 0; }
+  .hm-iconbtn:hover { background: var(--hm-ink); color: var(--hm-paper); }
+  @media (min-width: 960px) {
+    .hm-util { display: flex; }
+    .hm-bar { padding: 0 32px; min-height: 68px; gap: 40px; }
+    .hm-brand { flex: none; }
+    .hm-nav { position: static; display: flex; flex-direction: row; align-items: center; gap: 4px; border: 0; padding: 0; max-height: none; flex: 1 1 auto; min-width: 0; }
+    .hm-nav a { border: 0; padding: 10px 14px; font-size: .95rem; position: relative; }
+    .hm-nav a[aria-current='page'] { box-shadow: none; padding-left: 14px; }
+    .hm-nav a[aria-current='page']::after { content: ''; position: absolute; left: 14px; right: 14px; bottom: 2px; height: 2px; background: var(--hm-accent); }
+    .hm-nav .hm-cta { margin: 0 0 0 auto; }
+    .hm-toggle, .hm-phone-btn { display: none; }
+  }
+
+  /* ---------- หน้าแรก ---------- */
+  .hm-wrap { width: 100%; max-width: 1240px; margin-inline: auto; padding-inline: 16px; }
+  @media (min-width: 640px) { .hm-wrap { padding-inline: 24px; } }
+  @media (min-width: 960px) { .hm-wrap { padding-inline: 32px; } }
+  .hm-mast { padding: 40px 0 28px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: end; }
+  .hm-mast h1 { font-size: clamp(2rem, 7vw, 4.4rem); margin: 0; }
+  .hm-mast h1 span { display: block; color: var(--hm-accent-ink); }
+  .hm-mast .lede { max-width: 36em; margin: 18px 0 0; color: var(--hm-ink-2); font-size: 1.05rem; }
+  .hm-facts { display: flex; flex-wrap: wrap; gap: 0; margin: 24px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--hm-ink); }
+  .hm-facts li { flex: 1 1 120px; padding: 12px 16px 0 0; }
+  .hm-facts b { display: block; font-family: var(--hm-mono); font-size: 1.25rem; font-weight: 500; }
+  .hm-facts span { font-size: .8rem; color: var(--hm-muted); }
+  .hm-plate { margin: 0; border: 1px solid var(--hm-ink); background: var(--hm-paper-2); }
+  .hm-plate img { display: block; width: 100%; height: auto; max-height: 380px; object-fit: contain; }
+  .hm-plate figcaption { display: flex; justify-content: space-between; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--hm-ink); font-size: .85rem; }
+  .hm-plate figcaption b { font-family: var(--hm-display); }
+  .hm-plate figcaption span { font-family: var(--hm-mono); }
+  @media (min-width: 960px) { .hm-mast { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 48px; padding: 64px 0 40px; } }
+
+  /* แถบค้นหา: เส้นคม ไม่มีเงา */
+  .hm-search { border: 1px solid var(--hm-ink); background: var(--hm-paper); padding: 18px; }
+  .hm-search .field label { color: var(--hm-ink-2); font-weight: 600; }
+  .hm-search legend, .hm-search .hm-title { font-family: var(--hm-display); font-weight: 700; font-size: 1.05rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+  /* รายการรถแบบแคตตาล็อก: แถว ไม่ใช่การ์ด */
+  .hm-sechead { display: flex; align-items: end; justify-content: space-between; gap: 16px; padding: 56px 0 14px; border-bottom: 2px solid var(--hm-ink); }
+  .hm-sechead h2 { margin: 0; font-size: clamp(1.5rem, 4vw, 2.2rem); }
+  .hm-sechead p { margin: 4px 0 0; color: var(--hm-muted); font-size: .9rem; }
+  .hm-catalogue { list-style: none; margin: 0; padding: 0; }
+  .hm-row { display: grid; grid-template-columns: minmax(0, 120px) minmax(0, 1fr); gap: 12px 16px; align-items: center; padding: 16px 8px; border-bottom: 1px solid var(--hm-rule); transition: background-color .15s; }
+  .hm-row:hover { background: var(--hm-paper-2); }
+  .hm-row-img { aspect-ratio: 4 / 3; background: var(--hm-paper); display: grid; place-items: center; overflow: hidden; }
+  .hm-row-img img { width: 100%; height: 100%; object-fit: contain; }
+  .hm-row-name { font-family: var(--hm-display); font-weight: 700; font-size: 1.1rem; line-height: 1.3; margin: 0; }
+  .hm-row-type { font-size: .78rem; color: var(--hm-muted); margin: 2px 0 6px; }
+  .hm-row-spec { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: .8rem; color: var(--hm-ink-2); }
+  .hm-row-price { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px dotted var(--hm-rule); }
+  .hm-row-price b { font-family: var(--hm-mono); font-size: 1.35rem; font-weight: 500; }
+  .hm-row-price small { color: var(--hm-muted); font-size: .78rem; }
+  .hm-row-go { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: .88rem; white-space: nowrap; border-bottom: 2px solid var(--hm-accent); padding-bottom: 1px; }
+  .hm-tag { display: inline-block; font-size: .7rem; font-weight: 700; border: 1px solid var(--hm-ink); padding: 0 6px; margin-left: 6px; vertical-align: middle; }
+  @media (min-width: 760px) {
+    .hm-row { grid-template-columns: 200px minmax(0, 1fr) minmax(0, 220px); padding: 18px 12px; gap: 24px; }
+    .hm-row-price { grid-column: auto; flex-direction: column; align-items: flex-end; border-top: 0; padding-top: 0; gap: 8px; text-align: right; }
+  }
+
+  /* ขั้นตอน + เหตุผล: คอลัมน์คั่นเส้น */
+  .hm-steps { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--hm-ink); }
+  .hm-steps li { padding: 18px 0; border-bottom: 1px solid var(--hm-rule); display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 4px 12px; }
+  .hm-steps .n { font-family: var(--hm-mono); font-size: 1.6rem; color: var(--hm-accent-ink); line-height: 1; }
+  .hm-steps h3 { margin: 0 0 4px; font-size: 1.05rem; }
+  .hm-steps p { margin: 0; color: var(--hm-ink-2); font-size: .9rem; }
+  @media (min-width: 960px) {
+    .hm-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .hm-steps li { display: block; padding: 22px 20px 22px 0; border-bottom: 0; border-right: 1px solid var(--hm-rule); margin-right: 20px; }
+    .hm-steps li:last-child { border-right: 0; margin-right: 0; }
+    .hm-steps .n { display: block; margin-bottom: 12px; }
+  }
+  .hm-why { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .hm-why > div { border-top: 1px solid var(--hm-ink); padding: 18px 0 22px; }
+  .hm-why h3 { margin: 0 0 6px; font-size: 1.1rem; }
+  .hm-why p { margin: 0; color: var(--hm-ink-2); max-width: 32em; }
+  @media (min-width: 760px) { .hm-why { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; } }
+
+  /* ท้ายเว็บ: ประโยคใหญ่ + คอลัมน์เล็ก */
+  .hm-foot { margin-top: 72px; background: var(--hm-ink); color: var(--hm-paper); }
+  .hm-foot a { color: var(--hm-paper); }
+  .hm-foot-statement { font-family: var(--hm-display); font-weight: 700; font-size: clamp(1.6rem, 5vw, 3.2rem); line-height: 1.25; max-width: 18em; margin: 0; padding: 56px 0 36px; color: var(--hm-paper); overflow-wrap: anywhere; }
+  .hm-foot-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 28px 0; border-top: 1px solid color-mix(in oklch, var(--hm-paper) 30%, transparent); font-size: .9rem; }
+  .hm-foot-cols h4 { font-family: var(--hm-body); font-size: .78rem; letter-spacing: .1em; color: var(--hm-accent); margin: 0 0 10px; font-weight: 700; }
+  .hm-foot-cols div > a, .hm-foot-cols div > span { display: block; padding: 5px 0; }
+  .hm-foot-cols a:hover { text-decoration: underline; text-decoration-color: var(--hm-accent); text-underline-offset: 4px; }
+  .hm-foot-legal { padding: 16px 0 28px; font-size: .78rem; color: color-mix(in oklch, var(--hm-paper) 65%, transparent); border-top: 1px solid color-mix(in oklch, var(--hm-paper) 20%, transparent); }
+  @media (min-width: 760px) { .hm-foot-cols { grid-template-columns: 1.4fr 1fr 1fr; } }
+}
