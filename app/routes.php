@@ -64,3 +64,13 @@ $router->post('/admin/bookings/{id}/security', [Admin\FlowController::class, 'se
 $router->get('/admin/bookings/{id}/inspection/{kind}', [Admin\FlowController::class, 'inspection'], ['auth']);
 $router->post('/admin/bookings/{id}/inspection/{kind}', [Admin\FlowController::class, 'uploadPhoto'], ['auth']);
 $router->get('/admin/inspection-photos/{id}', [Admin\FlowController::class, 'photo'], ['auth']);
+
+// หลังบ้าน: เอกสาร (create ต้องมาก่อน {id})
+$router->get('/admin/documents', [Admin\DocumentController::class, 'index'], ['auth']);
+$router->get('/admin/documents/create', [Admin\DocumentController::class, 'create'], ['auth']);
+$router->post('/admin/documents', [Admin\DocumentController::class, 'store'], ['auth']);
+$router->get('/admin/documents/{id}', [Admin\DocumentController::class, 'show'], ['auth']);
+$router->get('/admin/documents/{id}/print', [Admin\DocumentController::class, 'print'], ['auth']);
+$router->get('/admin/documents/{id}/edit', [Admin\DocumentController::class, 'edit'], ['auth']);
+$router->post('/admin/documents/{id}', [Admin\DocumentController::class, 'update'], ['auth']);
+$router->post('/admin/documents/{id}/status', [Admin\DocumentController::class, 'status'], ['auth']);

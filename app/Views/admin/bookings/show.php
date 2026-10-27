@@ -44,6 +44,20 @@ $due = (float) $booking['grand_total'] + (float) $booking['extra_charge']; ?>
   </div>
 </div>
 
+<?php $docTypes = \App\Services\DocumentService::TYPES; $bookingDocs = \App\Models\Document::forBooking((int) $booking['id']); ?>
+<div class="panel mt-6">
+  <div class="flex flex-wrap items-center gap-2">
+    <h2 class="font-semibold mr-auto">เอกสาร</h2>
+    <?php foreach (['quotation', 'invoice', 'receipt'] as $dt): ?>
+      <a class="btn" href="<?= e(url('/admin/documents/create?booking=' . $booking['id'] . '&type=' . $dt)) ?>">+ <?= e($docTypes[$dt]) ?></a>
+    <?php endforeach; ?>
+  </div>
+  <?php if ($bookingDocs === []): ?><p class="text-sm text-slate-500 mt-2">ยังไม่มีเอกสารของการจองนี้</p>
+  <?php else: ?><ul class="mt-2 text-sm space-y-1">
+    <?php foreach ($bookingDocs as $d): ?><li><a class="text-brand-700 hover:underline" href="<?= e(url('/admin/documents/' . $d['id'])) ?>"><?= e($d['doc_no']) ?></a> · <?= e($docTypes[$d['doc_type']]) ?> · ฿<?= e(money($d['grand_total'])) ?> · <?= e(\App\Services\DocumentService::STATUSES[$d['status']]) ?></li><?php endforeach; ?>
+  </ul><?php endif; ?>
+</div>
+
 <?php
 $id = (int) $booking['id'];
 $depositMissing = max(0.0, (float) $booking['deposit_amount'] - $netPaid);

@@ -83,6 +83,22 @@ final class Database
         }
     }
 
+    /** รัน $work ใน transaction (ย้อนกลับเมื่อเกิดข้อผิดพลาด) และลองใหม่เมื่อโดนเลือกเป็นเหยื่อ deadlock */
+    public static function transaction(callable $work)
+    {
+        return self::retryOnDeadlock(static function () use ($work) {
+            self::begin();
+            try {
+                $result = $work();
+                self::commit();
+                return $result;
+            } catch (\Throwable $e) {
+                self::rollBack();
+                throw $e;
+            }
+        });
+    }
+
     /** เริ่ม transaction — เรียกซ้อนได้ (ชั้นในใช้ SAVEPOINT) เพื่อให้เทสต์ครอบด้วย transaction แล้ว rollback ได้ */
     public static function begin(): void
     {

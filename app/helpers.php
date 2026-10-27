@@ -181,3 +181,21 @@ function post(string $key, string $default = ''): string
     $value = $_POST[$key] ?? $default;
     return is_string($value) ? trim($value) : $default;
 }
+
+/** วันที่แบบไทย พ.ศ. เช่น "10 มิ.ย. 2573" (+ " 10:00 น." เมื่อ $withTime) — รับ Y-m-d หรือ Y-m-d H:i:s */
+function thai_date(?string $value, bool $withTime = false): string
+{
+    $ts = $value ? strtotime($value) : false;
+    if ($ts === false) {
+        return '-';
+    }
+    $months = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    $text = (int) date('j', $ts) . ' ' . $months[(int) date('n', $ts)] . ' ' . ((int) date('Y', $ts) + 543);
+    return $withTime ? $text . ' ' . date('H:i', $ts) . ' น.' : $text;
+}
+
+/** เงินแบบบัญชี: ทศนิยม 2 ตำแหน่งเสมอ (ใช้บนเอกสาร) */
+function money2($amount): string
+{
+    return number_format((float) $amount, 2);
+}

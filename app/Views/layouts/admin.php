@@ -16,6 +16,7 @@
         <a href="<?= e(url('/admin')) ?>" class="hover:text-white">ภาพรวม</a>
         <a href="<?= e(url('/admin/bookings')) ?>" class="hover:text-white">การจอง</a>
         <a href="<?= e(url('/admin/payments')) ?>" class="hover:text-white">ชำระเงิน<?php if ($navPendingSlips > 0): ?> <span class="ml-1 rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-slate-900"><?= e($navPendingSlips) ?></span><?php endif; ?></a>
+        <a href="<?= e(url('/admin/documents')) ?>" class="hover:text-white">เอกสาร</a>
         <a href="<?= e(url('/admin/cars')) ?>" class="hover:text-white">รถ</a>
         <?php if (\App\Services\Auth::isAdmin()): ?><a href="<?= e(url('/admin/settings')) ?>" class="hover:text-white">ตั้งค่าร้าน</a><?php endif; ?>
       </nav>

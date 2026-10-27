@@ -158,3 +158,64 @@ function test_http_flow_pages_require_login_and_reject_unknown_inspection_kind()
         t_http_flow_cleanup($fx);
     }
 }
+
+function test_http_documents_create_from_booking_print_and_status(): void
+{
+    $fx = t_http_flow_fixture();
+    $bid = $fx['booking'];
+    try {
+        $cookies = [];
+        t_http_login($fx, $cookies);
+        $b = Booking::find($bid);
+
+        // ฟอร์มเติมจากการจอง
+        $form = t_http('GET', "/admin/documents/create?booking=$bid&type=invoice", [], $cookies);
+        assert_same(200, $form['status']);
+        assert_true(strpos($form['body'], 'ค่าเช่ารถ') !== false, 'ฟอร์มมีรายการค่าเช่าจากการจอง');
+
+        // สร้างจริงด้วยค่าที่ฟอร์มส่ง
+        $token = t_http_csrf('/admin/documents/create', $cookies);
+        $post = ['_csrf' => $token, 'doc_type' => 'invoice', 'booking_id' => (string) $bid, 'issue_date' => '2031-09-01', 'bill_name' => 'ลูกค้าเทสต์',
+            'discount' => '0', 'vat_rate' => '0', 'wht_rate' => '0',
+            'items' => [['description' => 'ค่าเช่ารถ', 'qty' => '3', 'unit' => 'วัน', 'price' => '1000'], ['description' => '', 'qty' => '1', 'unit' => '', 'price' => '']]];
+        $r = t_http('POST', '/admin/documents', ['form' => $post], $cookies);
+        assert_same(302, $r['status'], 'สร้างเอกสารแล้วต้อง redirect');
+        $loc = $r['headers']['location'][0] ?? '';
+        assert_true(preg_match('#/admin/documents/(\d+)$#', $loc, $m) === 1, "location=$loc");
+        $docId = (int) $m[1];
+
+        $show = t_http('GET', "/admin/documents/$docId", [], $cookies);
+        assert_same(200, $show['status']);
+        assert_true(strpos($show['body'], '3,000.00') !== false, 'แสดงยอด');
+        $print = t_http('GET', "/admin/documents/$docId/print", [], $cookies);
+        assert_same(200, $print['status']);
+        assert_true(strpos($print['body'], 'ใบแจ้งหนี้') !== false && strpos($print['body'], 'window.print') !== false);
+
+        // ตัวเลขสุทธิต้องไม่หลุดเป็น "ว่าง" ถ้า post ผิด → แสดงฟอร์มกลับพร้อมข้อความ ไม่ 500
+        $bad = t_http('POST', '/admin/documents', ['form' => ['_csrf' => $token, 'doc_type' => 'invoice', 'issue_date' => '2031-09-01', 'bill_name' => 'x', 'items' => [['description' => 'a', 'qty' => '1', 'price' => 'abc']]]], $cookies);
+        assert_same(200, $bad['status']);
+        assert_true(strpos($bad['body'], 'ต้องเป็นตัวเลข') !== false);
+
+        // items เป็นข้อความธรรมดา (ไม่ใช่อาเรย์) ต้องไม่ทำให้ 500
+        $weird = t_http('POST', '/admin/documents', ['form' => ['_csrf' => $token, 'doc_type' => 'invoice', 'issue_date' => '2031-09-01', 'bill_name' => 'x', 'items' => 'zzz']], $cookies);
+        assert_true($weird['status'] === 200, 'items ผิดรูปแบบต้องตอบฟอร์มกลับ ไม่ 500 (ได้ ' . $weird['status'] . ')');
+
+        // เปลี่ยนสถานะ
+        $r = t_http('POST', "/admin/documents/$docId/status", ['form' => ['_csrf' => $token, 'status' => 'paid']], $cookies);
+        assert_same(302, $r['status']);
+        assert_same('paid', Database::value('SELECT status FROM documents WHERE id = :i', ['i' => $docId]));
+        $edit = t_http('GET', "/admin/documents/$docId/edit", [], $cookies);
+        assert_same(302, $edit['status'], 'จ่ายแล้วแก้ไม่ได้');
+
+        // ต้องล็อกอิน
+        $anon = [];
+        assert_same(302, t_http('GET', "/admin/documents/$docId/print", [], $anon)['status']);
+        assert_same(404, t_http('GET', '/admin/documents/999999', [], $cookies)['status']);
+        assert_same(404, t_http('GET', '/admin/documents/abc', [], $cookies)['status']);
+    } finally {
+        Database::run('DELETE FROM documents WHERE booking_id = :b', ['b' => $bid]);
+        Database::run("DELETE FROM documents WHERE doc_no LIKE 'IV3109-%'");
+        Database::run("DELETE FROM sequences WHERE name = 'doc_invoice' AND period = '3109'");
+        t_http_flow_cleanup($fx);
+    }
+}

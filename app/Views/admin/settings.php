@@ -7,6 +7,12 @@
     <?php endif; ?>
     <?php if ($type === 'bool'): ?>
       <label class="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="<?= e($key) ?>" value="1" <?= ($values[$key] ?? '0') === '1' ? 'checked' : '' ?>> <?= e($label) ?></label>
+    <?php elseif ($type === 'textarea'): ?>
+      <div class="sm:col-span-2">
+        <label class="label" for="<?= e($key) ?>"><?= e($label) ?></label>
+        <textarea class="field <?= isset($errors[$key]) ? 'field-error' : '' ?>" id="<?= e($key) ?>" name="<?= e($key) ?>" rows="4"><?= e($values[$key] ?? '') ?></textarea>
+        <?php if (isset($errors[$key])): ?><p class="text-sm text-red-600 mt-1"><?= e($errors[$key]) ?></p><?php endif; ?>
+      </div>
     <?php else: ?>
       <div class="<?= $type === 'tiers' ? 'sm:col-span-2' : '' ?>">
         <label class="label" for="<?= e($key) ?>"><?= e($label) ?></label>

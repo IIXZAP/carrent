@@ -7,13 +7,18 @@ use App\Services\DeliveryFeeService;
 /** ตั้งค่าร้าน (เฉพาะเจ้าของร้าน) — แก้ได้เฉพาะ key ที่ระบุไว้ที่นี่ */
 final class SettingController
 {
-    /** key => [ป้าย, ชนิด, กลุ่ม] ชนิด: text | time | hours | days | km | percent | money | bool | tiers */
+    /** key => [ป้าย, ชนิด, กลุ่ม] ชนิด: text | textarea | time | hours | days | km | percent | money | bool | tiers */
     public const FIELDS = [
         'phone'                    => ['เบอร์โทรร้าน', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'bank_name'                => ['ธนาคาร', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'bank_account_no'          => ['เลขที่บัญชี', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'bank_account_name'        => ['ชื่อบัญชี', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'promptpay'                => ['พร้อมเพย์ (เบอร์/เลขผู้เสียภาษี)', 'text', 'ติดต่อ / บัญชีรับโอน'],
+        'shop_name'                => ['ชื่อร้าน / นิติบุคคล', 'text', 'ข้อมูลร้านบนเอกสารและสัญญา'],
+        'shop_address'             => ['ที่อยู่ร้าน', 'textarea', 'ข้อมูลร้านบนเอกสารและสัญญา'],
+        'shop_tax_id'              => ['เลขประจำตัวผู้เสียภาษี', 'text', 'ข้อมูลร้านบนเอกสารและสัญญา'],
+        'contract_extra_terms'     => ['ข้อสัญญาเพิ่มเติม (ต่อท้ายข้อสัญญามาตรฐาน — ให้ทนายตรวจก่อนใช้จริง)', 'textarea', 'ข้อมูลร้านบนเอกสารและสัญญา'],
+        'pdpa_policy_text'         => ['ข้อความขอความยินยอม PDPA ที่ลูกค้าเห็นก่อนเซ็น', 'textarea', 'ข้อมูลร้านบนเอกสารและสัญญา'],
         'open_time'                => ['ร้านเปิด (HH:MM)', 'time', 'เวลาและกติกาการจอง'],
         'close_time'               => ['ร้านปิด (HH:MM)', 'time', 'เวลาและกติกาการจอง'],
         'booking_lead_hours'       => ['จองล่วงหน้าอย่างน้อย (ชม.)', 'hours', 'เวลาและกติกาการจอง'],
@@ -75,6 +80,8 @@ final class SettingController
         switch ($type) {
             case 'text':
                 return mb_strlen($value) <= 200 ? null : 'ยาวเกินไป';
+            case 'textarea':
+                return mb_strlen($value) <= 4000 ? null : 'ยาวเกินไป (ไม่เกิน 4,000 ตัวอักษร)';
             case 'time':
                 return preg_match('/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/', $value) === 1 ? null : 'รูปแบบเวลาต้องเป็น HH:MM (00:00–24:00)';
             case 'hours':
