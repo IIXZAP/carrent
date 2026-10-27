@@ -24,11 +24,11 @@ $menu   = \App\Services\AdminNav::menu();
 <link rel="icon" type="image/png" sizes="32x32" href="<?= url('assets/img/favicon-32.png') ?>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <?= brand_style() ?>
 <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
 </head>
-<body class="bg-[#f2f4f8] print:bg-white">
+<body class="hma bg-[#f2f4f8] print:bg-white">
 <div class="flex min-h-screen">
 
   <aside id="side" class="fixed inset-y-0 left-0 z-40 flex w-[236px] -translate-x-full flex-col overflow-y-auto bg-dark text-white/75 transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 print:hidden [&.open]:translate-x-0">
@@ -44,7 +44,7 @@ $menu   = \App\Services\AdminNav::menu();
         <?php foreach ($items as $it): ?>
           <a class="mb-0.5 flex items-center gap-2.5 rounded-lg px-[11px] py-[9px] text-[0.92rem] no-underline hover:bg-white/10 hover:text-white <?= $active === $it['key'] ? 'bg-brand font-semibold text-white' : 'text-white/75' ?>"
              href="<?= url($it['path']) ?>">
-            <span class="w-[18px] flex-none text-center opacity-90"><?= $it['icon'] ?></span><?= e($it['label']) ?>
+            <?= e($it['label']) ?>
             <?php if ($it['count'] > 0): ?>
               <span class="ml-auto rounded-full bg-accent px-[7px] text-[0.72rem] font-extrabold text-dark"><?= (int) $it['count'] ?></span>
             <?php endif; ?>
@@ -53,10 +53,10 @@ $menu   = \App\Services\AdminNav::menu();
       <?php endforeach; ?>
       <div class="side-heading">อื่นๆ</div>
       <a class="side-link" href="<?= url('') ?>" target="_blank" rel="noopener">
-        <span class="w-[18px] flex-none text-center opacity-90">🌐</span>ดูหน้าเว็บลูกค้า</a>
+        ดูหน้าเว็บลูกค้า</a>
       <form method="post" action="<?= e(url('/admin/logout')) ?>">
         <?= csrf_field() ?>
-        <button class="side-link w-full cursor-pointer border-0 bg-transparent text-left"><span class="w-[18px] flex-none text-center opacity-90">🚪</span>ออกจากระบบ</button>
+        <button class="side-link w-full cursor-pointer border-0 bg-transparent text-left">ออกจากระบบ</button>
       </form>
     </nav>
   </aside>
@@ -64,7 +64,7 @@ $menu   = \App\Services\AdminNav::menu();
   <main class="flex min-w-0 flex-1 flex-col">
     <div class="sticky top-0 z-30 flex h-[62px] items-center gap-4 border-b border-line bg-white px-4 sm:px-6 print:hidden">
       <button type="button" class="cursor-pointer rounded-lg border border-line bg-transparent px-2.5 py-1.5 text-[1.1rem] lg:hidden" aria-label="เมนู"
-              onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+              onclick="document.getElementById('side').classList.toggle('open')"><i class="hma-burger" aria-hidden="true"></i></button>
       <h1 class="m-0 truncate text-[1.15rem] sm:text-[1.15rem]"><?= e($title) ?></h1>
       <div class="ml-auto flex items-center gap-3">
         <?= \App\Core\View::section('top_actions') ?>

@@ -41,7 +41,7 @@ $meterTone = $utilization < 40 ? 'danger' : ($utilization < 65 ? 'warn' : '');
 <?php if ($overdue): ?>
   <!-- รถเลยกำหนดคืน: ระบบกันคันเหล่านี้ไม่ให้จองต่อจนกว่าจะบันทึกรับคืน จึงต้องเห็นและกดได้ทันที -->
   <div class="panel mb-4 border-danger/40 bg-danger-bg">
-    <h3 class="text-danger">⚠️ รถเลยกำหนดคืน <?= count($overdue) ?> คัน</h3>
+    <h3 class="text-danger">รถเลยกำหนดคืน <?= count($overdue) ?> คัน</h3>
     <p class="text-sm">คันเหล่านี้ <b>ลูกค้ารายอื่นจองไม่ได้</b> จนกว่าจะบันทึกรับคืน — ถ้ารถกลับมาแล้วให้กดบันทึกทันที</p>
     <?php foreach ($overdue as $o):
         $lateH   = (int) floor((time() - strtotime($o['return_at'])) / 3600);
@@ -65,7 +65,7 @@ $meterTone = $utilization < 40 ? 'danger' : ($utilization < 65 ? 'warn' : '');
       <h3>งานวันนี้ — <?= e(thai_date($today)) ?></h3>
       <div class="mt-2 grid gap-4 sm:grid-cols-2">
         <div>
-          <h4 class="text-sm text-brand">🚗 ส่งมอบรถ (<?= count($pickupToday) ?>)</h4>
+          <h4 class="text-sm text-brand">ส่งมอบรถ (<?= count($pickupToday) ?>)</h4>
           <?php if (!$pickupToday): ?><p class="text-sm text-muted">ไม่มีงานส่งมอบวันนี้</p><?php endif; ?>
           <?php foreach ($pickupToday as $p): $l = \App\Services\BookingStatus::STATUS[$p['status']]; $cl = status_tone('booking', $p['status']); ?>
             <div class="mb-2 rounded-lg border border-line px-3 py-2.5">
@@ -80,7 +80,7 @@ $meterTone = $utilization < 40 ? 'danger' : ($utilization < 65 ? 'warn' : '');
           <?php endforeach; ?>
         </div>
         <div>
-          <h4 class="text-sm text-ok">🔙 รับคืนรถ (<?= count($returnToday) ?>)</h4>
+          <h4 class="text-sm text-ok">รับคืนรถ (<?= count($returnToday) ?>)</h4>
           <?php if (!$returnToday): ?><p class="text-sm text-muted">ไม่มีงานรับคืนวันนี้</p><?php endif; ?>
           <?php foreach ($returnToday as $p): ?>
             <div class="mb-2 rounded-lg border border-line px-3 py-2.5">

@@ -13,23 +13,23 @@ final class AdminNav
         $pending = (int) (Booking::countByStatus()['pending'] ?? 0);
         $slips = Payment::pendingCount();
 
-        // [path, key, icon, label, count, เฉพาะเจ้าของร้าน]
+        // [path, key, (icon: ไม่ใช้), label, count, เฉพาะเจ้าของร้าน]
         $menu = [
             'งานประจำวัน' => [
-                ['/admin', 'dashboard', '📊', 'ภาพรวม', 0, false],
-                ['/admin/bookings', 'bookings', '📅', 'การจอง', $pending, false],
-                ['/admin/calendar', 'calendar', '🗓️', 'ปฏิทินรถ', 0, false],
-                ['/admin/payments', 'payments', '💰', 'ชำระเงิน', $slips, false],
+                ['/admin', 'dashboard', '', 'ภาพรวม', 0, false],
+                ['/admin/bookings', 'bookings', '', 'การจอง', $pending, false],
+                ['/admin/calendar', 'calendar', '', 'ปฏิทินรถ', 0, false],
+                ['/admin/payments', 'payments', '', 'ชำระเงิน', $slips, false],
             ],
             'ข้อมูลหลัก' => [
-                ['/admin/cars', 'cars', '🚗', 'รถ', 0, false],
-                ['/admin/customers', 'customers', '👤', 'ลูกค้า', 0, false],
+                ['/admin/cars', 'cars', '', 'รถ', 0, false],
+                ['/admin/customers', 'customers', '', 'ลูกค้า', 0, false],
             ],
             'เอกสาร' => [
-                ['/admin/documents', 'documents', '📄', 'ใบเสนอราคา/ใบเสร็จ', 0, false],
+                ['/admin/documents', 'documents', '', 'ใบเสนอราคา/ใบเสร็จ', 0, false],
             ],
             'ระบบ' => [
-                ['/admin/settings', 'settings', '⚙️', 'ตั้งค่า', 0, true],
+                ['/admin/settings', 'settings', '', 'ตั้งค่า', 0, true],
             ],
         ];
 

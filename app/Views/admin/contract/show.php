@@ -16,7 +16,7 @@
         <p>เมื่อ <?= e(thai_date($sig['signed_at'], true)) ?> · IP <?= e($sig['ip']) ?></p>
         <p class="text-muted break-all">อุปกรณ์: <?= e($sig['user_agent']) ?></p>
         <p>รหัสอ้างอิง <b><?= e(\App\Services\SignatureService::ref($sig)) ?></b></p>
-        <?php if (!$k['intact']): ?><p class="text-danger font-semibold">⚠ สำเนาที่เก็บไม่ตรงกับ hash — ข้อมูลถูกแก้ในฐานข้อมูลโดยตรง ห้ามใช้เป็นหลักฐาน</p><?php endif; ?>
+        <?php if (!$k['intact']): ?><p class="text-danger font-semibold">สำเนาที่เก็บไม่ตรงกับ hash — ข้อมูลถูกแก้ในฐานข้อมูลโดยตรง ห้ามใช้เป็นหลักฐาน</p><?php endif; ?>
       </div>
     </div>
     <?php if ($k['changes']): ?>

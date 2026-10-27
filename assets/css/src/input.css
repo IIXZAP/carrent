@@ -474,3 +474,47 @@
   .hm-foot-legal { padding: 16px 0 28px; font-size: .78rem; color: color-mix(in oklch, var(--hm-paper) 65%, transparent); border-top: 1px solid color-mix(in oklch, var(--hm-paper) 20%, transparent); }
   @media (min-width: 760px) { .hm-foot-cols { grid-template-columns: 1.4fr 1fr 1fr; } }
 }
+
+/* Hallmark · macrostructure: Workbench (admin) · tone: utilitarian · theme: เดิมของระบบ (สีจาก --c-brand/--c-accent/--c-dark ในตั้งค่าร้าน — ไม่เปลี่ยน) · type: Sarabun + IBM Plex Mono (ตัวเลข) · no emoji/glyph icons · pre-emit critique: P4 H4 E4 S4 R5 V4 — เฉพาะ body.hma (หลังบ้าน); หน้าลูกค้า .hm ไม่แตะ */
+@layer components {
+  .hma { --hma-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+
+  /* แถบเมนูข้าง: ตัวหนังสืออย่างเดียว, แถบสีเน้นด้านซ้ายบอกหน้าปัจจุบัน */
+  .hma #side a, .hma #side .side-link { border-radius: 0; border-left: 3px solid transparent; padding-left: 12px; margin-bottom: 0; }
+  .hma #side a:hover, .hma #side .side-link:hover { background: rgb(255 255 255 / .06); }
+  .hma #side a.bg-brand { background: rgb(255 255 255 / .08); border-left-color: rgb(var(--c-accent)); }
+  .hma #side a .rounded-full { border-radius: 2px; font-family: var(--hma-mono); font-weight: 600; }
+  .hma .side-heading { letter-spacing: .08em; padding-top: 18px; }
+  .hma header + *, .hma main > .sticky { box-shadow: none; }
+
+  /* ปุ่มเมนูมือถือ: เส้นสามขีดด้วย CSS ไม่ใช้อักขระ */
+  .hma-burger { display: block; width: 18px; height: 2px; background: currentColor; position: relative; }
+  .hma-burger::before, .hma-burger::after { content: ""; position: absolute; left: 0; width: 18px; height: 2px; background: currentColor; }
+  .hma-burger::before { top: -6px; }
+  .hma-burger::after { top: 6px; }
+
+  /* ผิวเรียบ: มุมเหลี่ยม, ไม่มีเงา, เส้นกรอบบาง */
+  .hma .panel, .hma .stat, .hma .bank, .hma .alert { border-radius: 2px; box-shadow: none; }
+  .hma .panel { border-top: 2px solid rgb(var(--c-dark)); }
+  .hma .panel-flat { border-top-width: 1px; }
+  .hma .btn { border-radius: 2px; }
+  .hma .btn-sm { border-radius: 2px; }
+  .hma input:not([type=checkbox]):not([type=radio]), .hma select, .hma textarea { border-radius: 2px; }
+  .hma .badge { border-radius: 2px; font-family: var(--hma-mono); font-size: .7rem; letter-spacing: .02em; }
+  .hma .meter, .hma .meter > i { border-radius: 0; }
+  .hma .meter { height: 6px; }
+
+  /* ตารางแบบสมุดบัญชี */
+  .hma .table th { background: transparent; border-bottom: 2px solid rgb(var(--c-dark)); color: rgb(var(--c-dark)); text-transform: none; }
+  .hma .table td.num, .hma .table th.num { font-family: var(--hma-mono); }
+
+  /* การ์ดตัวเลข: แผ่นเรียบ แถบสีสถานะด้านบนแทนด้านซ้าย */
+  .hma .stat { border-left-width: 1px; border-top: 3px solid rgb(var(--c-dark)); }
+  .hma .stat-ok { border-left-color: theme('colors.line.DEFAULT'); border-top-color: theme('colors.ok.DEFAULT'); }
+  .hma .stat-warn { border-left-color: theme('colors.line.DEFAULT'); border-top-color: theme('colors.warn.DEFAULT'); }
+  .hma .stat-danger { border-left-color: theme('colors.line.DEFAULT'); border-top-color: theme('colors.danger.DEFAULT'); }
+  .hma .stat-brand { border-left-color: theme('colors.line.DEFAULT'); border-top-color: rgb(var(--c-brand)); }
+  .hma .stat-accent { border-left-color: theme('colors.line.DEFAULT'); border-top-color: rgb(var(--c-accent)); }
+  .hma .stat .vl { font-family: var(--hma-mono); font-weight: 600; letter-spacing: -.01em; }
+  .hma .stat .lb { font-weight: 600; }
+}
