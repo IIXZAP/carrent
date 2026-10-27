@@ -1,17 +1,14 @@
 <?php
 namespace App\Controllers\Admin;
 
-use App\Models\Car;
+use App\Services\Auth;
+use App\Services\DashboardService;
 
 final class DashboardController
 {
+    /** ภาพรวม — รายได้ทั้งหมดเห็นเฉพาะเจ้าของร้าน พนักงานเห็นเฉพาะงาน */
     public function index(): void
     {
-        view('admin/dashboard', [
-            'title'  => 'ภาพรวม',
-            'counts' => Car::countByStatus(),
-            'bookingCounts' => \App\Models\Booking::countByStatus(),
-            'pendingSlips'  => \App\Models\Payment::pendingCount(),
-        ], 'layouts/admin');
+        view('admin/dashboard', ['title' => 'ภาพรวม'] + DashboardService::data(Auth::isAdmin()), 'layouts/admin');
     }
 }

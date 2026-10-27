@@ -44,7 +44,7 @@ function test_setting_time_money_tiers(): void
 
 function test_setting_every_field_has_a_known_type_and_fits_its_column(): void
 {
-    $known = ['text', 'textarea', 'time', 'int', 'money', 'bool', 'tiers', 'percent', 'hours', 'days', 'km'];
+    $known = ['text', 'color', 'textarea', 'time', 'int', 'money', 'bool', 'tiers', 'percent', 'hours', 'days', 'km'];
     foreach (SettingController::FIELDS as $key => [$label, $type]) {
         assert_true(in_array($type, $known, true), "$key มีชนิดที่ไม่รู้จัก: $type");
     }
@@ -64,4 +64,10 @@ function test_setting_textarea_limit(): void
 {
     assert_same(null, SettingController::validate('textarea', str_repeat('ก', 4000)));
     assert_true(SettingController::validate('textarea', str_repeat('ก', 4001)) !== null);
+}
+
+function test_setting_color(): void
+{
+    t_setting_ok('color', ['#1f2d3d', '#FFF', '#e09a3c']);
+    t_setting_bad('color', ['', '1f2d3d', '#12345', 'red', '#gggggg', 'javascript:alert(1)', '#fff;}</style><script>']);
 }

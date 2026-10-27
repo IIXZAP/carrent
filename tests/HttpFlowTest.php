@@ -340,3 +340,44 @@ function test_http_signing_flow_customer_link_to_admin_void(): void
         t_http_flow_cleanup($fx);
     }
 }
+
+function test_http_every_page_renders_without_php_warnings(): void
+{
+    $fx = t_http_flow_fixture();
+    $bid = $fx['booking'];
+    try {
+        $anon = [];
+        $car = $fx['car'];
+        $pickup = date('Y-m-d\TH:i', strtotime('+10 days 10:00'));
+        $return = date('Y-m-d\TH:i', strtotime('+12 days 10:00'));
+        foreach (['/', '/cars', "/cars/$car", '/how-to', '/faq', '/contact', '/terms', '/track', '/admin/login', '/nope',
+                  '/cars?pd=' . substr($pickup, 0, 10) . '&pt=10:00&rd=' . substr($return, 0, 10) . '&rt=10:00',
+                  "/cars/$car?pickup=$pickup&return=$return",
+                  "/booking?car=$car&pickup=$pickup&return=$return"] as $path) {
+            $r = t_http('GET', $path, [], $anon);
+            assert_true(in_array($r['status'], [200, 404], true), "$path ตอบ {$r['status']}");
+            assert_true($path === '/nope' || $r['status'] === 200, "$path ต้อง 200");
+            assert_true(strpos($r['body'], '<html') !== false, "$path ต้องเป็นหน้า HTML เต็ม");
+        }
+        // ผลค้นหาแสดงราคารวมของช่วงที่เลือก
+        $search = t_http('GET', '/cars?pd=' . substr($pickup, 0, 10) . '&pt=10:00&rd=' . substr($return, 0, 10) . '&rt=10:00', [], $anon);
+        assert_true(strpos($search['body'], 'พบรถว่าง') !== false, 'ผลค้นหาต้องบอกจำนวนรถว่าง');
+        // วันคืนก่อนวันรับ = แจ้งผิดพลาด ไม่ 500
+        assert_same(200, t_http('GET', '/cars?pd=2031-01-10&pt=10:00&rd=2031-01-09&rt=10:00', [], $anon)['status']);
+
+        $admin = [];
+        t_http_login($fx, $admin);
+        foreach (['/admin', '/admin/bookings', '/admin/bookings?status=pending&q=x', '/admin/bookings/create', "/admin/bookings/$bid", "/admin/bookings/$bid/contract",
+                  "/admin/bookings/$bid/inspection/out", "/admin/bookings/$bid/security", '/admin/cars', '/admin/cars/create', "/admin/cars/$car/edit",
+                  '/admin/payments', '/admin/documents', '/admin/documents?type=invoice', '/admin/documents/create', "/admin/documents/create?booking=$bid&type=invoice",
+                  '/admin/settings'] as $path) {
+            $r = t_http('GET', $path, [], $admin);
+            assert_same(200, $r['status'], "$path ตอบ {$r['status']}");
+            assert_true(strpos($r['body'], 'class="flex min-h-screen"') !== false || strpos($r['body'], 'min-h-screen') !== false, "$path ต้องอยู่ในเลย์เอาต์หลังบ้าน");
+        }
+        $problems = t_http_php_problems();
+        assert_same([], $problems, "มี PHP warning/notice ระหว่างเรนเดอร์หน้า:\n" . implode("\n", array_slice($problems, 0, 5)));
+    } finally {
+        t_http_flow_cleanup($fx);
+    }
+}

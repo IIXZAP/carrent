@@ -18,9 +18,12 @@ function t_http_base(): string
     $port = (int) substr(stream_socket_get_name($probe, false), strrpos(stream_socket_get_name($probe, false), ':') + 1);
     fclose($probe);
 
-    $proc = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", 'index.php'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, APP_ROOT);
-    register_shutdown_function(static function () use ($proc): void {
+    $log = tempnam(sys_get_temp_dir(), 'carrent-http');
+    $GLOBALS['t_http_log'] = $log;
+    $proc = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", 'index.php'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', $log, 'w']], $pipes, APP_ROOT);
+    register_shutdown_function(static function () use ($proc, $log): void {
         proc_terminate($proc);
+        @unlink($log);
     });
     for ($i = 0; $i < 50; $i++) {
         $fp = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
@@ -31,6 +34,14 @@ function t_http_base(): string
         usleep(100000);
     }
     throw new RuntimeException('เปิดเซิร์ฟเวอร์ทดสอบไม่ได้');
+}
+
+/** บรรทัด "PHP Warning/Notice/Deprecated/Fatal" ที่เซิร์ฟเวอร์ทดสอบเขียนลง error log ตั้งแต่เริ่มรัน — ใช้จับตัวแปรไม่มีค่า/พารามิเตอร์ผิดที่หน้าเว็บไม่แสดง */
+function t_http_php_problems(): array
+{
+    $log = (string) ($GLOBALS['t_http_log'] ?? '');
+    $lines = $log !== '' && is_file($log) ? (file($log, FILE_IGNORE_NEW_LINES) ?: []) : [];
+    return array_values(array_filter($lines, static fn(string $l): bool => (bool) preg_match('/PHP (Warning|Notice|Deprecated|Fatal|Parse)/', $l)));
 }
 
 /**

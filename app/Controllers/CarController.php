@@ -9,6 +9,42 @@ use App\Services\QuoteService;
 
 final class CarController
 {
+    /** รายการรถ + ค้นหารถว่างตามช่วงวัน (ไม่เลือกวัน = แสดงรถทั้งหมด) */
+    public function index(): void
+    {
+        [$pickup, $return, $asked] = request_period();
+        $type = get_str('type');
+        $error = null;
+        $days = 0;
+        $cars = [];
+        if (!$asked) {
+            $cars = Car::allPublic();
+            if ($type !== '') {
+                $cars = array_values(array_filter($cars, static fn(array $c): bool => $c['car_type_code'] === $type));
+            }
+        } elseif ($pickup === null || $return === null) {
+            $error = 'กรุณาเลือกวันและเวลารับรถ–คืนรถให้ครบ';
+        } else {
+            $error = AvailabilityService::validatePeriod($pickup, $return);
+            if ($error === null) {
+                $cars = AvailabilityService::availableCars($pickup, $return, $type);
+                $days = $cars ? (int) $cars[0]['_days'] : \App\Services\PricingService::rentalDays($pickup, $return, (int) \App\Models\Setting::get('late_grace_hours', '2'));
+            }
+        }
+        view('public/cars', [
+            'title'     => 'รถเช่าของเรา',
+            'searching' => $asked && $error === null,
+            'error'     => $error,
+            'days'      => $days,
+            'cars'      => $cars,
+            'pickup'    => $pickup,
+            'ret'       => $return,
+            'sbPick'    => $pickup ? input_datetime($pickup) : date('Y-m-d\TH:i', strtotime('tomorrow 10:00')),
+            'sbRet'     => $return ? input_datetime($return) : date('Y-m-d\TH:i', strtotime('tomorrow +1 day 10:00')),
+            'sbType'    => $type,
+        ]);
+    }
+
     public function show(string $id): void
     {
         $car = Car::find((int) $id);
@@ -16,9 +52,7 @@ final class CarController
             abort(404);
         }
 
-        $pickup = normalize_datetime(get_str('pickup'));
-        $return = normalize_datetime(get_str('return'));
-        $asked  = isset($_GET['pickup']) || isset($_GET['return']);
+        [$pickup, $return, $asked] = request_period();
         $rawAddons = get_array('addons');
         $km = max(0.0, (float) get_str('km', '0'));
 

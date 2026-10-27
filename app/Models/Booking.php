@@ -116,7 +116,9 @@ final class Booking
             $params += ['q1' => $like, 'q2' => $like, 'q3' => $like, 'q4' => $like];
         }
         return Database::all(
-            self::SELECT_WITH_CAR . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY b.id DESC LIMIT ' . (int) $limit,
+            'SELECT b.*, c.plate, c.brand, c.model, v.paid_total, v.balance_due
+               FROM bookings b JOIN cars c ON c.id = b.car_id LEFT JOIN v_booking_payment v ON v.booking_id = b.id
+              WHERE ' . implode(' AND ', $where) . ' ORDER BY b.id DESC LIMIT ' . (int) $limit,
             $params
         );
     }

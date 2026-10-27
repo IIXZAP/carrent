@@ -16,6 +16,7 @@ spl_autoload_register(static function (string $class): void {
 
 $GLOBALS['config'] = require APP_ROOT . '/config/config.php';
 require APP_ROOT . '/app/helpers.php';
+require APP_ROOT . '/app/helpers_ui.php';
 
 date_default_timezone_set(config('timezone'));
 

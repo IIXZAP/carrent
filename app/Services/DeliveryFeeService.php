@@ -41,4 +41,21 @@ final class DeliveryFeeService
         }
         return null;
     }
+
+    /** ข้อความอธิบายตารางค่าส่ง ใช้แสดงในหน้าเว็บและเงื่อนไข (รับค่าจาก settings ผ่านผู้เรียก) */
+    public static function tiersText(float $freeKm, array $tiers): string
+    {
+        $free = (int) $freeKm;
+        $parts = ["ไม่เกิน {$free} กม. ไม่มีค่าใช้จ่าย"];
+        $previousKm = $free;
+        foreach ($tiers as $tier) {
+            if ($tier['max_km'] <= $free) {
+                continue;
+            }
+            $parts[] = sprintf('%d–%d กม. %s บาท', $previousKm + 1, (int) $tier['max_km'], number_format($tier['fee']));
+            $previousKm = (int) $tier['max_km'];
+        }
+        $parts[] = "เกิน {$previousKm} กม. กรุณาติดต่อเจ้าหน้าที่";
+        return implode(' · ', $parts);
+    }
 }

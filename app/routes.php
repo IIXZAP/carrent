@@ -5,12 +5,18 @@ use App\Controllers\Admin;
 use App\Controllers\BookingController;
 use App\Controllers\CarController;
 use App\Controllers\HomeController;
+use App\Controllers\PageController;
 use App\Controllers\SignController;
 use App\Controllers\TrackController;
 
 // หน้าลูกค้า
 $router->get('/', [HomeController::class, 'index']);
+$router->get('/cars', [CarController::class, 'index']);
 $router->get('/cars/{id}', [CarController::class, 'show']);
+$router->get('/how-to', [PageController::class, 'howTo']);
+$router->get('/faq', [PageController::class, 'faq']);
+$router->get('/contact', [PageController::class, 'contact']);
+$router->get('/terms', [PageController::class, 'terms']);
 $router->get('/booking', [BookingController::class, 'form']);
 $router->post('/booking', [BookingController::class, 'store']);
 $router->get('/booking/success/{no}', [BookingController::class, 'success']);

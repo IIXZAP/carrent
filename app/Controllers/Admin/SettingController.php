@@ -7,8 +7,16 @@ use App\Services\DeliveryFeeService;
 /** ตั้งค่าร้าน (เฉพาะเจ้าของร้าน) — แก้ได้เฉพาะ key ที่ระบุไว้ที่นี่ */
 final class SettingController
 {
-    /** key => [ป้าย, ชนิด, กลุ่ม] ชนิด: text | textarea | time | hours | days | km | percent | money | bool | tiers */
+    /** key => [ป้าย, ชนิด, กลุ่ม] ชนิด: text | color | textarea | time | hours | days | km | percent | money | bool | tiers */
     public const FIELDS = [
+        'site_name'                => ['ชื่อเว็บ (ขึ้นบนหัวเว็บ/แท็บ)', 'text', 'เว็บไซต์และแบรนด์'],
+        'site_tagline'             => ['สโลแกน', 'text', 'เว็บไซต์และแบรนด์'],
+        'phone2'                   => ['เบอร์โทรสำรอง', 'text', 'เว็บไซต์และแบรนด์'],
+        'email'                    => ['อีเมลติดต่อ', 'text', 'เว็บไซต์และแบรนด์'],
+        'line_id'                  => ['LINE ID', 'text', 'เว็บไซต์และแบรนด์'],
+        'brand_primary'            => ['สีหลัก (เช่น #1f2d3d)', 'color', 'เว็บไซต์และแบรนด์'],
+        'brand_accent'             => ['สีเน้น (เช่น #e09a3c)', 'color', 'เว็บไซต์และแบรนด์'],
+        'brand_dark'               => ['สีเข้ม (เช่น #16212e)', 'color', 'เว็บไซต์และแบรนด์'],
         'phone'                    => ['เบอร์โทรร้าน', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'bank_name'                => ['ธนาคาร', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'bank_account_no'          => ['เลขที่บัญชี', 'text', 'ติดต่อ / บัญชีรับโอน'],
@@ -80,6 +88,8 @@ final class SettingController
         switch ($type) {
             case 'text':
                 return mb_strlen($value) <= 200 ? null : 'ยาวเกินไป';
+            case 'color':
+                return preg_match('/^#([0-9a-f]{3}|[0-9a-f]{6})$/i', $value) === 1 ? null : 'ต้องเป็นรหัสสี เช่น #1f2d3d';
             case 'textarea':
                 return mb_strlen($value) <= 4000 ? null : 'ยาวเกินไป (ไม่เกิน 4,000 ตัวอักษร)';
             case 'time':

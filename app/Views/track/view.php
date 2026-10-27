@@ -1,19 +1,21 @@
-<?php use App\Models\Payment; use App\Services\BookingStatus; ?>
+<?php use App\Models\Payment; use App\Services\BookingStatus;
+\App\Core\View::layout('layouts/public', ['title' => 'การจอง ' . $booking['booking_no'], 'active' => 'track', 'noindex' => true]); ?>
+<div class="wrap max-w-[760px] py-8 pb-12">
 <div class="flex items-center justify-between">
   <div>
     <p class="eyebrow">การจองของคุณ</p>
     <h1 class="text-2xl font-bold"><?= e($booking['booking_no']) ?></h1>
   </div>
-  <form method="post" action="<?= e(url('/track/leave')) ?>"><?= csrf_field() ?><button class="text-sm text-slate-500 hover:text-slate-800">ออก</button></form>
+  <form method="post" action="<?= e(url('/track/leave')) ?>"><?= csrf_field() ?><button class="text-sm text-muted hover:text-ink">ออก</button></form>
 </div>
 
 <div class="panel mt-4">
   <div class="flex flex-wrap gap-2">
-    <span class="badge badge-<?= e($booking['status']) ?>"><?= e(BookingStatus::STATUS[$booking['status']]) ?></span>
-    <span class="badge badge-inactive"><?= e(BookingStatus::PAYMENT[$booking['payment_status']]) ?></span>
+    <span class="badge badge-<?= e(status_tone('booking', $booking['status'])) ?>"><?= e(BookingStatus::STATUS[$booking['status']]) ?></span>
+    <span class="badge badge-<?= e(status_tone('payment', $booking['payment_status'])) ?>"><?= e(BookingStatus::PAYMENT[$booking['payment_status']]) ?></span>
   </div>
   <p class="mt-3"><?= e($booking['brand'] . ' ' . $booking['model']) ?> · <?= e($booking['plate']) ?></p>
-  <p class="text-sm text-slate-600 mt-1">รับรถ <?= e(date('d/m/Y H:i', strtotime($booking['pickup_at']))) ?>
+  <p class="text-sm text-ink-2 mt-1">รับรถ <?= e(date('d/m/Y H:i', strtotime($booking['pickup_at']))) ?>
     · คืนรถ <?= e(date('d/m/Y H:i', strtotime($booking['return_at']))) ?> (<?= e($booking['rental_days']) ?> วัน)</p>
 
   <table class="table mt-4">
@@ -31,14 +33,14 @@
     <h2 class="font-semibold">ค่าใช้จ่ายเพิ่มตอนรับคืนรถ</h2>
     <table class="table mt-2">
       <?php foreach ($extraLines as $l): ?>
-        <tr><td><?= e($l['label']) ?><?php if (!empty($l['detail'])): ?><br><span class="text-xs text-slate-500"><?= e($l['detail']) ?></span><?php endif; ?></td><td class="text-right">฿<?= e(money($l['amount'])) ?></td></tr>
+        <tr><td><?= e($l['label']) ?><?php if (!empty($l['detail'])): ?><br><span class="text-xs text-muted"><?= e($l['detail']) ?></span><?php endif; ?></td><td class="text-right">฿<?= e(money($l['amount'])) ?></td></tr>
       <?php endforeach; ?>
     </table>
   </div>
 <?php endif; ?>
 
 <?php if ($booking['status'] === 'pending' && $paid + 0.01 < $booking['deposit_amount']): ?>
-  <div class="alert alert-success mt-4">การจองจะยืนยันเมื่อร้านได้รับมัดจำ ฿<?= e(money($booking['deposit_amount'])) ?> กรุณาโอนแล้วแนบสลิปด้านล่าง
+  <div class="alert alert-ok mt-4">การจองจะยืนยันเมื่อร้านได้รับมัดจำ ฿<?= e(money($booking['deposit_amount'])) ?> กรุณาโอนแล้วแนบสลิปด้านล่าง
     <?php if (!empty($deadline)): ?><br><strong>ชำระก่อน <?= e(date('d/m/Y H:i', strtotime($deadline))) ?> น.</strong> มิฉะนั้นการจองจะถูกยกเลิกอัตโนมัติ<?php endif; ?></div>
 <?php endif; ?>
 
@@ -50,21 +52,21 @@
     <?= csrf_field() ?>
     <div>
       <label class="label" for="amount">จำนวนเงินที่โอน (บาท)</label>
-      <input class="field" id="amount" name="amount" inputmode="decimal" required placeholder="<?= e(money(max($remaining, 0))) ?>">
+      <input id="amount" name="amount" inputmode="decimal" required placeholder="<?= e(money(max($remaining, 0))) ?>">
     </div>
     <div>
       <label class="label" for="paid_at">วัน–เวลาที่โอน</label>
-      <input class="field" id="paid_at" type="datetime-local" name="paid_at" value="<?= e(date('Y-m-d\TH:i')) ?>">
+      <input id="paid_at" type="datetime-local" name="paid_at" value="<?= e(date('Y-m-d\TH:i')) ?>">
     </div>
     <div class="sm:col-span-2">
       <label class="label" for="slip">รูปสลิป (JPG / PNG / WEBP ไม่เกิน 8 MB)</label>
-      <input class="field" id="slip" type="file" name="slip" accept="image/jpeg,image/png,image/webp" required>
+      <input id="slip" type="file" data-shrink name="slip" accept="image/jpeg,image/png,image/webp" required>
     </div>
     <div class="sm:col-span-2">
       <label class="label" for="note">หมายเหตุ (ไม่บังคับ)</label>
-      <input class="field" id="note" name="note" maxlength="500">
+      <input id="note" name="note" maxlength="500">
     </div>
-    <div class="sm:col-span-2"><button class="btn btn-primary">ส่งหลักฐานการโอน</button></div>
+    <div class="sm:col-span-2"><button class="btn btn-lg">ส่งหลักฐานการโอน</button></div>
   </form>
 </div>
 <?php endif; ?>
@@ -79,8 +81,8 @@
         <td class="whitespace-nowrap"><?= e(date('d/m/y H:i', strtotime($p['paid_at'] ?? $p['created_at']))) ?></td>
         <td><?= e(Payment::KINDS[$p['kind']]) ?></td>
         <td class="text-right">฿<?= e(money($p['amount'])) ?></td>
-        <td><span class="badge badge-<?= e($p['status']) ?>"><?= e(Payment::STATUS[$p['status']]) ?></span>
-          <?php if ($p['status'] === 'rejected' && $p['reject_reason']): ?><br><span class="text-xs text-red-700"><?= e($p['reject_reason']) ?></span><?php endif; ?></td>
+        <td><span class="badge badge-<?= e(status_tone('slip', $p['status'])) ?>"><?= e(Payment::STATUS[$p['status']]) ?></span>
+          <?php if ($p['status'] === 'rejected' && $p['reject_reason']): ?><br><span class="text-xs text-danger"><?= e($p['reject_reason']) ?></span><?php endif; ?></td>
         <td><?php if ($p['slip_file']): ?><a class="text-brand-700 hover:underline" target="_blank" href="<?= e(url('/track/slip/' . $p['id'])) ?>">ดูสลิป</a><?php endif; ?></td>
       </tr>
     <?php endforeach; ?>
@@ -88,3 +90,5 @@
   </table>
 </div>
 <?php endif; ?>
+
+</div>

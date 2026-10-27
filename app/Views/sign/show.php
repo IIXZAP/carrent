@@ -2,24 +2,24 @@
 $kindLabel = \App\Services\SignatureService::kinds()[$kind][0];
 $self = ['no' => $booking['booking_no'], 'k' => $kind, 't' => $booking['sign_token']];
 ?>
-<h1 class="text-xl font-bold"><?= e($kindLabel) ?> <span class="text-slate-400"><?= e($booking['booking_no']) ?></span></h1>
+<h1 class="text-xl font-bold"><?= e($kindLabel) ?> <span class="text-muted"><?= e($booking['booking_no']) ?></span></h1>
 
 <?php if ($active): ?>
   <div class="panel mt-4 border-green-300 bg-green-50">
-    <p class="font-semibold text-green-800">ลงนามเรียบร้อยแล้ว</p>
+    <p class="font-semibold text-ok">ลงนามเรียบร้อยแล้ว</p>
     <p class="text-sm mt-1">ผู้ลงนาม <?= e($active['signer_name']) ?> · <?= e(thai_date($active['signed_at'], true)) ?></p>
-    <p class="text-sm text-slate-600">รหัสอ้างอิง <b><?= e(\App\Services\SignatureService::ref($active)) ?></b> — เก็บรหัสนี้ไว้อ้างอิงกับร้าน</p>
+    <p class="text-sm text-ink-2">รหัสอ้างอิง <b><?= e(\App\Services\SignatureService::ref($active)) ?></b> — เก็บรหัสนี้ไว้อ้างอิงกับร้าน</p>
   </div>
 <?php elseif ($view['blocker']): ?>
-  <div class="alert alert-error mt-4"><?= e($view['blocker']) ?></div>
+  <div class="alert alert-danger mt-4"><?= e($view['blocker']) ?></div>
 <?php else: ?>
-  <?php if ($error): ?><div class="alert alert-error mt-4"><?= e($error) ?></div><?php endif; ?>
+  <?php if ($error): ?><div class="alert alert-danger mt-4"><?= e($error) ?></div><?php endif; ?>
 
   <div class="panel mt-4">
     <h2 class="font-semibold">ตรวจสอบข้อมูลก่อนลงนาม</h2>
     <table class="table mt-2">
       <?php foreach ($view['fields'] as [$label, $value]): ?>
-        <tr><td class="text-slate-500 w-2/5"><?= e($label) ?></td><td><?= e($value) ?></td></tr>
+        <tr><td class="text-muted w-2/5"><?= e($label) ?></td><td><?= e($value) ?></td></tr>
       <?php endforeach; ?>
     </table>
     <?php if ($kind === 'return' && $view['extras'] !== []): ?>
@@ -36,7 +36,7 @@ $self = ['no' => $booking['booking_no'], 'k' => $kind, 't' => $booking['sign_tok
     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
       <?php foreach ($photos as $p): ?>
         <a href="<?= e(url('/sign/photo/' . $p['id'] . '?' . http_build_query($self))) ?>" target="_blank" rel="noopener noreferrer">
-          <img class="rounded border border-slate-200 w-full h-28 object-cover" loading="lazy" alt="<?= e($p['position']) ?>" src="<?= e(url('/sign/photo/' . $p['id'] . '?' . http_build_query($self))) ?>">
+          <img class="rounded border border-line w-full h-28 object-cover" loading="lazy" alt="<?= e($p['position']) ?>" src="<?= e(url('/sign/photo/' . $p['id'] . '?' . http_build_query($self))) ?>">
         </a>
       <?php endforeach; ?>
     </div>
@@ -56,21 +56,21 @@ $self = ['no' => $booking['booking_no'], 'k' => $kind, 't' => $booking['sign_tok
 
     <div>
       <h2 class="font-semibold">ความยินยอมข้อมูลส่วนบุคคล (PDPA)</h2>
-      <p class="text-sm text-slate-600 mt-1 whitespace-pre-line"><?= e($view['pdpa']) ?></p>
+      <p class="text-sm text-ink-2 mt-1 whitespace-pre-line"><?= e($view['pdpa']) ?></p>
     </div>
     <label class="flex items-start gap-2 text-sm"><input class="mt-1" type="checkbox" name="accept_terms" value="1" <?= !empty($form['accept_terms']) ? 'checked' : '' ?> required> ข้าพเจ้าได้อ่านและยอมรับข้อมูลและข้อสัญญาข้างต้นทุกข้อ</label>
     <label class="flex items-start gap-2 text-sm"><input class="mt-1" type="checkbox" name="consent" value="1" <?= !empty($form['consent']) ? 'checked' : '' ?> required> ข้าพเจ้ายินยอมให้เก็บและใช้ข้อมูลส่วนบุคคลตามข้อความข้างต้น</label>
 
     <div><label class="label" for="name">ชื่อ–นามสกุลผู้ลงนาม</label>
-      <input class="field" id="name" name="name" maxlength="150" autocomplete="name" value="<?= e($form['name'] ?? $booking['contact_name']) ?>" required></div>
+      <input id="name" name="name" maxlength="150" autocomplete="name" value="<?= e($form['name'] ?? $booking['contact_name']) ?>" required></div>
 
     <div>
       <label class="label">เซ็นชื่อในกรอบ (ใช้นิ้วหรือเมาส์)</label>
-      <canvas id="pad" width="900" height="300" class="w-full rounded-lg border border-slate-300 bg-white touch-none" style="aspect-ratio: 3 / 1"></canvas>
-      <div class="flex gap-2 mt-2"><button type="button" id="pad-clear" class="btn">ล้างลายเซ็น</button></div>
-      <p id="pad-error" class="text-sm text-red-600 mt-1 hidden">กรุณาเซ็นชื่อในกรอบก่อนกดยืนยัน</p>
+      <canvas id="pad" width="900" height="300" class="w-full rounded-lg border border-line bg-white touch-none" style="aspect-ratio: 3 / 1"></canvas>
+      <div class="flex gap-2 mt-2"><button type="button" id="pad-clear" class="btn btn-ghost">ล้างลายเซ็น</button></div>
+      <p id="pad-error" class="text-sm text-danger mt-1 hidden">กรุณาเซ็นชื่อในกรอบก่อนกดยืนยัน</p>
     </div>
-    <button class="btn btn-primary w-full" id="sign-submit">ยืนยันและลงนาม</button>
+    <button class="btn btn-lg btn-block" id="sign-submit">ยืนยันและลงนาม</button>
   </form>
   <script>
   (function () {
