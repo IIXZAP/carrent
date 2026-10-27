@@ -144,7 +144,8 @@ final class PricingService
         return ['total' => round($total, 2), 'lines' => $lines];
     }
 
-    private static function addonLabel(string $name, bool $perDay, int $days, bool $isDelivery, float $km, float $amount): string
+    /** ป้ายชื่อบริการเสริมบนใบเสนอราคา/ใบจอง (ใช้ซ้ำตอนพนักงานปรับค่าส่ง) */
+    public static function addonLabel(string $name, bool $perDay, int $days, bool $isDelivery, float $km, float $amount): string
     {
         $label = $name . ($perDay ? " ({$days} วัน)" : '');
         if ($isDelivery && $km > 0) {
@@ -174,6 +175,8 @@ final class PricingService
             $wantsDelivery = $wantsDelivery || (int) ($selected[$code] ?? 0) > 0;
         }
         $outOfRange = $wantsDelivery && $deliveryFee === null;
+        // เลือกส่ง/รับรถถึงที่ต้องบอกระยะทาง ไม่งั้นค่าส่งจะกลายเป็น 0 (ในระยะฟรี) โดยที่ไม่มีใครรู้ว่าจริงๆ ไกลแค่ไหน
+        $needsKm = $wantsDelivery && $km <= 0;
 
         $addon = self::calcAddons($car, $catalog, $selected, $days, $km, $deliveryFee ?? 0.0);
 
@@ -208,6 +211,7 @@ final class PricingService
             'due_on_pickup'     => round($balanceOnPickup + $securityDeposit, 2),
             'delivery_km'       => $km,
             'out_of_range'      => $outOfRange,
+            'needs_km'          => $needsKm,
         ];
     }
 

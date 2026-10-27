@@ -22,6 +22,7 @@ $due = (float) $booking['grand_total'] + (float) $booking['extra_charge']; ?>
       <div><dt class="inline text-slate-500">รับรถ: </dt><dd class="inline"><?= e(date('d/m/Y H:i', strtotime($booking['pickup_at']))) ?> <?= e($booking['pickup_place'] ?? '') ?></dd></div>
       <div><dt class="inline text-slate-500">คืนรถ: </dt><dd class="inline"><?= e(date('d/m/Y H:i', strtotime($booking['return_at']))) ?> <?= e($booking['return_place'] ?? '') ?></dd></div>
       <div><dt class="inline text-slate-500">จำนวนวัน: </dt><dd class="inline"><?= e($booking['rental_days']) ?></dd></div>
+      <?php if ($booking['delivery_km'] !== null): ?><div><dt class="inline text-slate-500">ระยะส่ง–รับรถ (ลูกค้าแจ้ง): </dt><dd class="inline"><?= e(rtrim(rtrim(number_format((float) $booking['delivery_km'], 1), '0'), '.')) ?> กม.</dd></div><?php endif; ?>
     </dl>
     <?php if ($booking['note']): ?><p class="mt-4 text-sm whitespace-pre-line"><span class="text-slate-500">หมายเหตุ:</span> <?= e($booking['note']) ?></p><?php endif; ?>
     <?php if ($booking['cancel_reason']): ?><p class="mt-2 text-sm text-red-700">เหตุผลที่ยกเลิก: <?= e($booking['cancel_reason']) ?></p><?php endif; ?>
@@ -42,6 +43,21 @@ $due = (float) $booking['grand_total'] + (float) $booking['extra_charge']; ?>
     </table>
   </div>
 </div>
+
+<?php if ($deliveryLines && in_array($booking['status'], ['pending', 'confirmed'], true)): ?>
+<form method="post" action="<?= e(url('/admin/bookings/' . $booking['id'] . '/delivery')) ?>" class="panel mt-6 grid gap-3 sm:grid-cols-5 items-end">
+  <?= csrf_field() ?>
+  <div class="sm:col-span-5">
+    <h2 class="font-semibold">ปรับค่าส่งรถ</h2>
+    <p class="text-sm text-slate-500">ระยะที่ลูกค้ากรอกไม่ได้ถูกตรวจสอบ — ปรับค่าส่งต่อเที่ยวเองหรือกรอกระยะจริงให้ระบบคิดตามตาราง ยอดรวม VAT และสถานะการชำระเงินจะคำนวณใหม่ (ทำได้ก่อนรับรถเท่านั้น)</p>
+    <p class="text-sm mt-1">ตอนนี้: <?php foreach ($deliveryLines as $l): ?><span class="mr-3"><?= e($l['name']) ?> ฿<?= e(money($l['amount'])) ?></span><?php endforeach; ?></p>
+  </div>
+  <div><label class="label" for="adj_km">ระยะจริง (กม.)</label><input class="field" id="adj_km" name="km" type="number" min="0" step="0.1"></div>
+  <div><label class="label" for="adj_fee">หรือ ค่าส่งต่อเที่ยว (บาท)</label><input class="field" id="adj_fee" name="fee" inputmode="decimal"></div>
+  <div class="sm:col-span-2"><label class="label" for="adj_reason">เหตุผล (บังคับ)</label><input class="field" id="adj_reason" name="reason" maxlength="250" required></div>
+  <button class="btn btn-primary">ปรับค่าส่ง</button>
+</form>
+<?php endif; ?>
 
 <div class="panel mt-6">
   <div class="flex flex-wrap items-baseline justify-between gap-2">

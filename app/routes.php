@@ -42,6 +42,7 @@ $router->get('/admin/bookings/create', [Admin\BookingController::class, 'create'
 $router->post('/admin/bookings', [Admin\BookingController::class, 'store'], ['auth']);
 $router->get('/admin/bookings/{id}', [Admin\BookingController::class, 'show'], ['auth']);
 $router->post('/admin/bookings/{id}/cancel', [Admin\BookingController::class, 'cancel'], ['auth']);
+$router->post('/admin/bookings/{id}/delivery', [Admin\BookingController::class, 'adjustDelivery'], ['auth']);
 
 // หลังบ้าน: ชำระเงิน / ตั้งค่าร้าน
 $router->get('/admin/payments', [Admin\PaymentController::class, 'index'], ['auth']);

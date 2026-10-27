@@ -103,6 +103,55 @@ final class Booking
         );
     }
 
+    /** แถวบริการส่ง/รับรถถึงที่ของการจอง (พร้อมชื่อตั้งต้นจากตาราง addons) */
+    public static function deliveryLines(int $bookingId): array
+    {
+        return Database::all(
+            "SELECT ba.*, a.code, a.name AS base_name FROM booking_addons ba
+               JOIN addons a ON a.id = ba.addon_id
+              WHERE ba.booking_id = :b AND a.code IN ('delivery','return_delivery') ORDER BY ba.id",
+            ['b' => $bookingId]
+        );
+    }
+
+    public static function updateAddonLine(int $lineId, string $name, float $unitPrice, float $amount): void
+    {
+        Database::run('UPDATE booking_addons SET name = :n, unit_price = :u, amount = :m WHERE id = :id', ['n' => $name, 'u' => $unitPrice, 'm' => $amount, 'id' => $lineId]);
+    }
+
+    public static function addonTotal(int $bookingId): float
+    {
+        return (float) Database::value('SELECT COALESCE(SUM(amount), 0) FROM booking_addons WHERE booking_id = :b', ['b' => $bookingId]);
+    }
+
+    /** รายการบริการเสริมในรูปแบบเดียวกับ quote (เก็บใน rate_breakdown) */
+    public static function addonLinesForBreakdown(int $bookingId): array
+    {
+        $out = [];
+        foreach (Database::all(
+            'SELECT ba.name, ba.qty, ba.unit_price, ba.amount, a.code FROM booking_addons ba LEFT JOIN addons a ON a.id = ba.addon_id WHERE ba.booking_id = :b ORDER BY ba.id',
+            ['b' => $bookingId]
+        ) as $row) {
+            $out[] = ['key' => $row['code'], 'label' => $row['name'], 'qty' => (float) $row['qty'], 'unit' => (float) $row['unit_price'], 'amount' => (float) $row['amount']];
+        }
+        return $out;
+    }
+
+    /** แก้ยอดเงินของการจอง (เรียกใน transaction ที่ล็อกการจองแล้วเท่านั้น) */
+    public static function updateTotals(int $id, array $values): void
+    {
+        $allowed = ['addon_amount', 'discount', 'subtotal', 'vat_amount', 'grand_total', 'deposit_amount', 'rate_breakdown', 'delivery_km'];
+        $sets = [];
+        $params = ['id' => $id];
+        foreach ($allowed as $col) {
+            if (array_key_exists($col, $values)) {
+                $sets[] = "$col = :$col";
+                $params[$col] = $values[$col];
+            }
+        }
+        Database::run('UPDATE bookings SET ' . implode(', ', $sets) . ' WHERE id = :id', $params);
+    }
+
     /** เงื่อนไขการจองที่หมดอายุยกเลิกอัตโนมัติได้ (ใช้ซ้ำทั้งตอนหาและตอน UPDATE เพื่อให้ตรวจ ณ ขณะเปลี่ยนจริง) */
     private const EXPIRABLE = "b.status = 'pending' AND b.source = 'web' AND b.payment_status = 'unpaid' AND b.created_at < :t
                                AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.booking_id = b.id AND p.status IN ('pending','approved'))";

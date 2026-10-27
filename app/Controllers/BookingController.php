@@ -97,7 +97,10 @@ final class BookingController
             }
         } else {
             $quote = QuoteService::forCar($car, $pickup, $return, $in['addons'], 0.0, (float) ($in['km'] ?? 0));
-            if ($quote['out_of_range']) {
+            if ($quote['needs_km']) {
+                $errors[] = 'กรุณาระบุระยะทางส่ง–รับรถ (กม.) เมื่อเลือกบริการส่ง/รับรถถึงที่ — กลับไปที่หน้ารถแล้วกรอกระยะทาง';
+                $quote = null;
+            } elseif ($quote['out_of_range']) {
                 $errors[] = 'พื้นที่ส่ง–รับรถไกลเกินระยะที่ให้บริการ กรุณาติดต่อเจ้าหน้าที่เพื่อขอราคา';
                 $quote = null;
             }

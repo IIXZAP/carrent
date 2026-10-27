@@ -7,7 +7,9 @@ use App\Models\Car;
 use App\Models\Payment;
 use App\Services\AdminBookingService;
 use App\Services\Auth;
+use App\Services\BookingService;
 use App\Services\BookingStatus;
+use App\Services\PaymentService;
 
 final class BookingController
 {
@@ -34,7 +36,28 @@ final class BookingController
             'payments'     => Payment::forBooking((int) $booking['id']),
             'netPaid'      => Payment::netPaid((int) $booking['id']),
             'securityHeld' => Payment::securityHeld((int) $booking['id']),
+            'deliveryLines' => Booking::deliveryLines((int) $booking['id']),
         ], 'layouts/admin');
+    }
+
+    public function adjustDelivery(string $id): void
+    {
+        $booking = $this->findOrFail($id);
+        $kmText = post('km');
+        $feeText = post('fee');
+        $km = $kmText === '' ? null : (is_numeric($kmText) ? (float) $kmText : -1.0);
+        $fee = $feeText === '' ? null : PaymentService::parseAmount($feeText, true);
+        if (($feeText !== '' && $fee === null) || ($km !== null && $km < 0)) {
+            flash('error', 'ค่าส่งหรือระยะทางไม่ถูกต้อง');
+            redirect('/admin/bookings/' . $booking['id']);
+        }
+        try {
+            BookingService::adjustDelivery((int) $booking['id'], $km, $fee, post('reason'), (int) Auth::user()['id'], client_ip());
+            flash('success', 'ปรับค่าส่งแล้ว ยอดรวมและสถานะการชำระเงินถูกคำนวณใหม่');
+        } catch (\Throwable $e) {
+            flash('error', BookingService::publicError($e, 'ปรับค่าส่งไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'));
+        }
+        redirect('/admin/bookings/' . $booking['id']);
     }
 
     public function create(): void

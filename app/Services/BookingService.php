@@ -50,6 +50,9 @@ final class BookingService
 
             $km    = max(0.0, min(2000.0, (float) ($opt['km'] ?? 0)));
             $quote = QuoteService::forCar($car, $pickup, $return, $opt['addons'] ?? [], (float) ($opt['discount'] ?? 0), $km, $opt['vat'] ?? null);
+            if ($quote['needs_km']) {
+                throw new UserError('กรุณาระบุระยะทางส่ง–รับรถ (กม.) เมื่อเลือกบริการส่ง/รับรถถึงที่');
+            }
             if ($quote['out_of_range']) {
                 throw new UserError('ระยะทางส่ง–รับรถเกินตารางค่าส่งที่ตั้งไว้ ระบบคิดราคาให้ไม่ได้ กรุณาติดต่อเจ้าหน้าที่');
             }
@@ -140,6 +143,97 @@ final class BookingService
             $addonId = $catalog[$line['key']]['id'] ?? null;
             Booking::insertAddon($bookingId, $addonId, $line['label'], (float) $line['qty'], (float) $line['unit'], (float) $line['amount']);
         }
+    }
+
+    /**
+     * พนักงานปรับค่าส่งรถของการจองที่ยังไม่รับรถ (ระยะที่ลูกค้ากรอกอาจไม่ตรงจริง / ตกลงราคาพิเศษ)
+     * ระบุ "ค่าส่งต่อเที่ยว" เอง หรือระบุแค่ระยะใหม่ให้ระบบคิดตามตารางค่าส่ง
+     * คำนวณยอดรวม VAT มัดจำ และสถานะการชำระเงินใหม่ทั้งหมดใน transaction เดียวที่ล็อกการจอง
+     * @throws UserError
+     */
+    public static function adjustDelivery(int $bookingId, ?float $km, ?float $feePerTrip, string $reason, int $userId, string $ip = ''): void
+    {
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 3) {
+            throw new UserError('กรุณาระบุเหตุผลในการปรับค่าส่ง');
+        }
+        if ($km !== null && ($km < 0 || $km > 2000)) {
+            throw new UserError('ระยะทางไม่ถูกต้อง');
+        }
+        if ($feePerTrip === null) {
+            if ($km === null) {
+                throw new UserError('กรุณาระบุค่าส่งหรือระยะทางอย่างใดอย่างหนึ่ง');
+            }
+            $rules = QuoteService::rules();
+            $feePerTrip = DeliveryFeeService::feeForKm($km, (float) $rules['free_km'], $rules['delivery_tiers']);
+            if ($feePerTrip === null) {
+                throw new UserError('ระยะทางเกินตารางค่าส่งที่ตั้งไว้ กรุณาระบุค่าส่งเอง');
+            }
+        }
+        if ($feePerTrip < 0 || $feePerTrip > 99999) {
+            throw new UserError('ค่าส่งไม่ถูกต้อง');
+        }
+        $feePerTrip = round($feePerTrip, 2);
+
+        $result = Database::retryOnDeadlock(function () use ($bookingId, $km, $feePerTrip, $reason): array {
+            Database::begin();
+            try {
+                $result = self::applyDeliveryFee($bookingId, $km, $feePerTrip, $reason);
+                Database::commit();
+                return $result;
+            } catch (\Throwable $e) {
+                Database::rollBack();
+                throw $e;
+            }
+        });
+        ActivityLog::log('delivery_adjusted', 'bookings', $bookingId, json_encode($result + ['reason' => $reason], JSON_UNESCAPED_UNICODE), $userId, $ip);
+    }
+
+    /** ส่วนที่ทำใน transaction (ล็อกการจองแล้ว) */
+    private static function applyDeliveryFee(int $bookingId, ?float $km, float $fee, string $reason): array
+    {
+        $booking = Booking::lockForUpdate($bookingId);
+        if ($booking === null) {
+            throw new UserError('ไม่พบการจอง');
+        }
+        if (!in_array($booking['status'], ['pending', 'confirmed'], true)) {
+            throw new UserError('ปรับค่าส่งได้เฉพาะการจองที่ยังไม่รับรถ');
+        }
+        $lines = Booking::deliveryLines($bookingId);
+        if ($lines === []) {
+            throw new UserError('การจองนี้ไม่ได้เลือกบริการส่ง/รับรถถึงที่');
+        }
+
+        $labelKm = $km ?? (float) ($booking['delivery_km'] ?? 0);
+        foreach ($lines as $line) {
+            $amount = round((float) $line['qty'] * $fee, 2);
+            $label = PricingService::addonLabel((string) $line['base_name'], false, 0, true, $labelKm, $amount);
+            Booking::updateAddonLine((int) $line['id'], $label, $fee, $amount);
+        }
+
+        // ยอดรวมใหม่ (สูตรเดียวกับ PricingService::quote และ CHECK ของตาราง bookings)
+        $addon    = round(Booking::addonTotal($bookingId), 2);
+        $gross    = round((float) $booking['rental_amount'] + $addon, 2);
+        $discount = min((float) $booking['discount'], $gross);
+        $subtotal = round($gross - $discount, 2);
+        $vat      = round($subtotal * (float) $booking['vat_rate'] / 100, 2);
+        $grand    = round($subtotal + $vat, 2);
+        $deposit  = round(min((float) $booking['deposit_amount'], $grand), 2);
+
+        $breakdown = json_decode((string) $booking['rate_breakdown'], true) ?: [];
+        $breakdown['addons'] = Booking::addonLinesForBreakdown($bookingId);
+        $breakdown['delivery_km'] = $km ?? ($breakdown['delivery_km'] ?? 0);
+        $breakdown['delivery_adjustments'][] = ['at' => date('Y-m-d H:i:s'), 'fee_per_trip' => $fee, 'reason' => $reason];
+
+        Booking::updateTotals($bookingId, [
+            'addon_amount' => $addon, 'discount' => $discount, 'subtotal' => $subtotal, 'vat_amount' => $vat,
+            'grand_total' => $grand, 'deposit_amount' => $deposit,
+            'rate_breakdown' => json_encode($breakdown, JSON_UNESCAPED_UNICODE),
+            'delivery_km' => $km !== null ? ($km > 0 ? $km : null) : $booking['delivery_km'],
+        ]);
+        PaymentService::recalc($bookingId);
+
+        return ['fee_per_trip' => $fee, 'km' => $km, 'grand_before' => (float) $booking['grand_total'], 'grand_after' => $grand];
     }
 
     /**

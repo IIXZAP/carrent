@@ -25,14 +25,14 @@ final class PaymentService
     private const RENTAL_KINDS = ['deposit', 'balance', 'extra'];
 
     /** แปลงข้อความจำนวนเงิน "1,234.50" → float ; null ถ้าไม่ถูกต้อง (ไม่ใช่ตัวเลข, <= 0, เกินกำหนด, ทศนิยมเกิน 2 ตำแหน่ง) */
-    public static function parseAmount(string $text): ?float
+    public static function parseAmount(string $text, bool $allowZero = false): ?float
     {
         $clean = str_replace([',', ' '], '', trim($text));
         if (!preg_match('/^\d+(\.\d{1,2})?$/', $clean)) {
             return null;
         }
         $value = (float) $clean;
-        return $value > 0 && $value <= self::MAX_AMOUNT ? round($value, 2) : null;
+        return ($value > 0 || ($allowZero && $value == 0.0)) && $value <= self::MAX_AMOUNT ? round($value, 2) : null;
     }
 
     /** สถานะชำระเงินจากยอดสุทธิ — ฟังก์ชันล้วน */

@@ -22,6 +22,8 @@ function t_booking_settings(): void
     Setting::set('close_time', '20:00');
     Setting::set('booking_lead_hours', '3');
     Setting::set('min_rental_days', '1');
+    Setting::set('free_delivery_km', '30');
+    Setting::set('delivery_tiers', '30:0,50:500,80:1000,120:1500,200:2500');
 }
 
 function t_contact(string $phone = '0811111111', string $name = 'สมชาย ทดสอบ'): array
