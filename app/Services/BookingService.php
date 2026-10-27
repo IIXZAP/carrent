@@ -2,10 +2,13 @@
 namespace App\Services;
 
 use App\Core\Database;
+use App\Models\ActivityLog;
 use App\Models\Addon;
 use App\Models\Booking;
 use App\Models\Car;
 use App\Models\Customer;
+use App\Models\Payment;
+use App\Models\Setting;
 
 /**
  * แกนกลางของการสร้างการจอง — ทั้งเว็บและหลังบ้านเรียกที่นี่ที่เดียว
@@ -137,6 +140,39 @@ final class BookingService
             $addonId = $catalog[$line['key']]['id'] ?? null;
             Booking::insertAddon($bookingId, $addonId, $line['label'], (float) $line['qty'], (float) $line['unit'], (float) $line['amount']);
         }
+    }
+
+    /**
+     * ยกเลิกการจองหน้าเว็บที่ไม่จ่ายมัดจำภายใน $hours ชั่วโมง (0 = ปิด) — เรียกจาก bin/cron.php
+     * @return string[] เลขที่จองที่ถูกยกเลิก
+     */
+    public static function expireUnpaid(int $hours): array
+    {
+        if ($hours <= 0) {
+            return [];
+        }
+        $rows = Booking::cancelExpiredUnpaid(
+            date('Y-m-d H:i:s', time() - $hours * 3600),
+            'ระบบยกเลิกอัตโนมัติ: ไม่ชำระมัดจำภายใน ' . $hours . ' ชั่วโมง'
+        );
+        $numbers = [];
+        foreach ($rows as $row) {
+            ActivityLog::log('booking_auto_cancelled', 'bookings', (int) $row['id'], $row['booking_no']);
+            $numbers[] = $row['booking_no'];
+        }
+        return $numbers;
+    }
+
+    /**
+     * เวลาที่การจองนี้จะถูกยกเลิกอัตโนมัติถ้ายังไม่จ่ายมัดจำ (ไว้แจ้งลูกค้า) — null = ไม่มีกำหนด
+     */
+    public static function expiryDeadline(array $booking): ?string
+    {
+        $hours = (int) Setting::get('pending_expire_hours', '0');
+        $applies = $hours > 0 && $booking['status'] === 'pending' && $booking['source'] === 'web'
+            && $booking['payment_status'] === 'unpaid'
+            && Payment::pendingCountForBooking((int) $booking['id']) === 0;
+        return $applies ? date('Y-m-d H:i:s', strtotime($booking['created_at']) + $hours * 3600) : null;
     }
 
     /** ข้อความแจ้งผู้ใช้: ของที่เราตั้งใจให้อ่านแสดงตามนั้น ที่เหลือลง log แล้วใช้ข้อความกลาง */

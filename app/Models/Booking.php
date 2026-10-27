@@ -103,6 +103,32 @@ final class Booking
         );
     }
 
+    /** เงื่อนไขการจองที่หมดอายุยกเลิกอัตโนมัติได้ (ใช้ซ้ำทั้งตอนหาและตอน UPDATE เพื่อให้ตรวจ ณ ขณะเปลี่ยนจริง) */
+    private const EXPIRABLE = "b.status = 'pending' AND b.source = 'web' AND b.payment_status = 'unpaid' AND b.created_at < :t
+                               AND NOT EXISTS (SELECT 1 FROM payments p WHERE p.booking_id = b.id AND p.status IN ('pending','approved'))";
+
+    /**
+     * ยกเลิกการจองที่ค้างไม่จ่ายมัดจำ — คืนเลขที่จองของใบที่ยกเลิกได้จริง
+     * ยกเลิกเฉพาะ: จองผ่านเว็บ · ยังรอยืนยัน · ยังไม่มีเงินเข้า · ไม่มีสลิปรอตรวจหรืออนุมัติแล้ว (สลิปที่ถูกปฏิเสธไม่นับ)
+     * การจองที่พนักงานสร้างเองไม่ถูกยกเลิกอัตโนมัติ (พนักงานตั้งใจกันรถไว้ให้ลูกค้า)
+     * แต่ละใบเป็น UPDATE เดียวที่ตรวจเงื่อนไขซ้ำ จึงไม่ชนกับคนที่เพิ่งอนุมัติสลิป/รับเงินในเสี้ยววินาทีเดียวกัน
+     */
+    public static function cancelExpiredUnpaid(string $createdBefore, string $reason): array
+    {
+        $candidates = Database::all('SELECT b.id, b.booking_no FROM bookings b WHERE ' . self::EXPIRABLE, ['t' => $createdBefore]);
+        $cancelled = [];
+        foreach ($candidates as $row) {
+            $stmt = Database::run(
+                "UPDATE bookings b SET b.status = 'cancelled', b.cancel_reason = :r WHERE b.id = :id AND " . self::EXPIRABLE,
+                ['r' => $reason, 'id' => $row['id'], 't' => $createdBefore]
+            );
+            if ($stmt->rowCount() === 1) {
+                $cancelled[] = $row;
+            }
+        }
+        return $cancelled;
+    }
+
     /**
      * ล็อกแถวการจองไว้จนจบ transaction — ใช้ก่อนแก้ยอดชำระ/สถานะ ให้คนที่แตะการจองใบเดียวกันต้องรอคิว
      * (ต้องเป็นคำสั่งแรกใน transaction ก่อนอ่านอย่างอื่น เหมือน Car::lockForUpdate)

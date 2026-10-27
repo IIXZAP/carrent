@@ -20,6 +20,7 @@ final class SettingController
         'booking_gap_hours'        => ['เวลาพักรถระหว่างงาน (ชม.)', 'int', 'เวลาและกติกาการจอง'],
         'min_rental_days'          => ['เช่าขั้นต่ำ (วัน)', 'int', 'เวลาและกติกาการจอง'],
         'late_grace_hours'         => ['ผ่อนผันคืนช้า (ชม.)', 'int', 'เวลาและกติกาการจอง'],
+        'pending_expire_hours'     => ['ยกเลิกอัตโนมัติถ้าไม่จ่ายมัดจำภายใน (ชม., 0 = ปิด — ต้องตั้ง cron ด้วย)', 'int', 'เวลาและกติกาการจอง'],
         'booking_deposit'          => ['มัดจำจองเริ่มต้น (บาท)', 'money', 'เงิน'],
         'security_deposit_default' => ['เงินประกันเริ่มต้น (บาท)', 'money', 'เงิน'],
         'vat_enabled'              => ['คิด VAT', 'bool', 'เงิน'],

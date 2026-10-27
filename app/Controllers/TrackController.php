@@ -56,6 +56,7 @@ final class TrackController
             'paid'      => $paid,
             'remaining' => max(0.0, round($due - $paid, 2)),
             'canPay'    => !in_array($booking['status'], ['cancelled', 'completed'], true),
+            'deadline'  => \App\Services\BookingService::expiryDeadline($booking),
         ]);
     }
 

@@ -62,6 +62,7 @@ final class BookingController
             'title'   => 'จองสำเร็จ',
             'booking' => $booking,
             'addons'  => Booking::addons((int) $booking['id']),
+            'deadline' => \App\Services\BookingService::expiryDeadline($booking),
         ]);
     }
 

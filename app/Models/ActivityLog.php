@@ -14,6 +14,15 @@ final class ActivityLog
         );
     }
 
+    /** จำนวนครั้งที่ action นี้มี detail ตรงกัน (เช่น อีเมลที่ถูกลองล็อกอิน) ตั้งแต่เวลาที่กำหนด */
+    public static function countByDetailSince(string $action, string $detail, string $since): int
+    {
+        return (int) Database::value(
+            'SELECT COUNT(*) FROM activity_logs WHERE action = :a AND detail = :d AND created_at >= :s',
+            ['a' => $action, 'd' => $detail, 's' => $since]
+        );
+    }
+
     /** จำนวนครั้งที่ IP นี้ทำ action นี้ตั้งแต่เวลาที่กำหนด */
     public static function countByIpSince(string $action, string $ip, string $since): int
     {

@@ -12,6 +12,9 @@
   </table>
 
   <p class="mt-6 text-sm text-slate-600">การจองจะยืนยันเมื่อร้านได้รับมัดจำ กรุณาจดเลขที่จองไว้ใช้ติดต่อร้าน</p>
+  <?php if (!empty($deadline)): ?>
+    <p class="mt-2 text-sm font-medium text-amber-700">กรุณาชำระมัดจำก่อน <?= e(date('d/m/Y H:i', strtotime($deadline))) ?> น. มิฉะนั้นการจองจะถูกยกเลิกอัตโนมัติ</p>
+  <?php endif; ?>
   <div class="mt-4 text-left"><?php require __DIR__ . '/../partials/bank_info.php'; ?></div>
   <div class="mt-4 flex flex-wrap justify-center gap-3">
     <a class="btn btn-primary" href="<?= e(url('/track/view')) ?>">แจ้งโอนเงิน / ดูสถานะการจอง</a>

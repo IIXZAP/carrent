@@ -26,7 +26,8 @@
 </div>
 
 <?php if ($booking['status'] === 'pending' && $paid + 0.01 < $booking['deposit_amount']): ?>
-  <div class="alert alert-success mt-4">การจองจะยืนยันเมื่อร้านได้รับมัดจำ ฿<?= e(money($booking['deposit_amount'])) ?> กรุณาโอนแล้วแนบสลิปด้านล่าง</div>
+  <div class="alert alert-success mt-4">การจองจะยืนยันเมื่อร้านได้รับมัดจำ ฿<?= e(money($booking['deposit_amount'])) ?> กรุณาโอนแล้วแนบสลิปด้านล่าง
+    <?php if (!empty($deadline)): ?><br><strong>ชำระก่อน <?= e(date('d/m/Y H:i', strtotime($deadline))) ?> น.</strong> มิฉะนั้นการจองจะถูกยกเลิกอัตโนมัติ<?php endif; ?></div>
 <?php endif; ?>
 
 <?php if ($canPay): ?>
