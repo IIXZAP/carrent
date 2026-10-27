@@ -101,3 +101,14 @@ $router->post('/admin/signatures/{id}/void', [Admin\ContractController::class, '
 $router->get('/admin/calendar', [Admin\CalendarController::class, 'index'], ['auth']);
 $router->post('/admin/calendar/block', [Admin\CalendarController::class, 'block'], ['auth']);
 $router->post('/admin/calendar/unblock', [Admin\CalendarController::class, 'unblock'], ['auth']);
+
+// หลังบ้าน: ลูกค้า (create ต้องมาก่อน {id}) + เอกสารแนบ (เปิดดู/ลบผ่านหน้าที่ตรวจสิทธิ์)
+$router->get('/admin/customers', [Admin\CustomerController::class, 'index'], ['auth']);
+$router->get('/admin/customers/create', [Admin\CustomerController::class, 'create'], ['auth']);
+$router->post('/admin/customers', [Admin\CustomerController::class, 'store'], ['auth']);
+$router->get('/admin/customers/{id}/edit', [Admin\CustomerController::class, 'edit'], ['auth']);
+$router->post('/admin/customers/{id}', [Admin\CustomerController::class, 'update'], ['auth']);
+$router->post('/admin/customers/{id}/delete', [Admin\CustomerController::class, 'destroy'], ['auth', 'admin']);
+$router->post('/admin/customers/{id}/documents', [Admin\CustomerController::class, 'uploadDocument'], ['auth']);
+$router->get('/admin/customer-docs/{id}', [Admin\CustomerController::class, 'viewDocument'], ['auth']);
+$router->post('/admin/customer-docs/{id}/delete', [Admin\CustomerController::class, 'deleteDocument'], ['auth', 'admin']);

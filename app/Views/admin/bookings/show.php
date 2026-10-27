@@ -11,7 +11,7 @@ $due = (float) $booking['grand_total'] + (float) $booking['extra_charge']; ?>
   <div class="panel">
     <h2 class="font-semibold">ผู้เช่า</h2>
     <dl class="mt-3 text-sm space-y-1">
-      <div><dt class="inline text-muted">ชื่อ: </dt><dd class="inline"><?= e($booking['contact_name']) ?></dd></div>
+      <div><dt class="inline text-muted">ชื่อ: </dt><dd class="inline"><?= e($booking['contact_name']) ?><?php if (!empty($booking['customer_id'])): ?> · <a href="<?= e(url('/admin/customers/' . (int) $booking['customer_id'] . '/edit')) ?>">ดูข้อมูลลูกค้า</a><?php endif; ?></dd></div>
       <div><dt class="inline text-muted">เบอร์: </dt><dd class="inline"><?= e(Phone::display($booking['contact_phone'])) ?></dd></div>
       <?php if ($booking['contact_email']): ?><div><dt class="inline text-muted">อีเมล: </dt><dd class="inline"><?= e($booking['contact_email']) ?></dd></div><?php endif; ?>
       <?php if ($booking['contact_line']): ?><div><dt class="inline text-muted">LINE: </dt><dd class="inline"><?= e($booking['contact_line']) ?></dd></div><?php endif; ?>

@@ -64,7 +64,13 @@ final class BookingController
 
     public function create(): void
     {
-        $this->form(['source' => 'phone', 'pick_type' => 'shop'], []);
+        $in = ['source' => 'phone', 'pick_type' => 'shop'];
+        // จากหน้าลูกค้า: เติมข้อมูลผู้เช่าให้ (ลูกค้าที่ลบแล้วไม่เติม)
+        $customer = ctype_digit(get_str('customer')) ? \App\Models\Customer::find((int) get_str('customer')) : null;
+        if ($customer !== null && $customer['deleted_at'] === null) {
+            $in += ['name' => $customer['full_name'], 'phone' => $customer['phone'], 'email' => (string) $customer['email'], 'line' => (string) $customer['line_id']];
+        }
+        $this->form($in, []);
     }
 
     public function store(): void

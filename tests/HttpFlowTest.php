@@ -370,7 +370,7 @@ function test_http_every_page_renders_without_php_warnings(): void
         foreach (['/admin', '/admin/bookings', '/admin/bookings?status=pending&q=x', '/admin/bookings/create', "/admin/bookings/$bid", "/admin/bookings/$bid/contract",
                   "/admin/bookings/$bid/inspection/out", "/admin/bookings/$bid/security", '/admin/cars', '/admin/cars/create', "/admin/cars/$car/edit",
                   '/admin/payments', '/admin/documents', '/admin/documents?type=invoice', '/admin/documents/create', "/admin/documents/create?booking=$bid&type=invoice",
-                  '/admin/settings', '/admin/calendar', '/admin/calendar?m=2031-09', '/admin/calendar?m=zzz', '/admin/calendar?m[]=1'] as $path) {
+                  '/admin/settings', '/admin/customers', '/admin/customers?only=blacklist', '/admin/customers?q=%25', '/admin/customers/create', '/admin/calendar', '/admin/calendar?m=2031-09', '/admin/calendar?m=zzz', '/admin/calendar?m[]=1'] as $path) {
             $r = t_http('GET', $path, [], $admin);
             assert_same(200, $r['status'], "$path ตอบ {$r['status']}");
             assert_true(strpos($r['body'], 'class="flex min-h-screen"') !== false || strpos($r['body'], 'min-h-screen') !== false, "$path ต้องอยู่ในเลย์เอาต์หลังบ้าน");
@@ -510,6 +510,124 @@ function test_http_car_images_upload_cover_gallery_and_public_page(): void
             @unlink($f);
         }
         @unlink($txt ?? '');
+        t_http_flow_cleanup($fx);
+    }
+}
+
+function test_http_customers_create_edit_documents_and_permissions(): void
+{
+    $fx = t_http_flow_fixture();
+    $created = [];
+    $files = [];
+    $staffEmail = 'staff' . bin2hex(random_bytes(3)) . '@test.local';
+    $staffId = Database::insert("INSERT INTO users (name, email, password_hash, role) VALUES ('staff', :e, :h, 'staff')", ['e' => $staffEmail, 'h' => password_hash('password-1234', PASSWORD_DEFAULT)]);
+    try {
+        $admin = [];
+        t_http_login($fx, $admin);
+        $csrf = t_http_csrf('/admin/customers/create', $admin);
+
+        // รายการ + ฟอร์ม
+        $list = t_http('GET', '/admin/customers', [], $admin);
+        assert_same(200, $list['status']);
+        assert_true(strpos($list['body'], 'ลูกค้าทั้งหมด') !== false);
+
+        // เพิ่มลูกค้า
+        $phone = '08' . random_int(10000000, 99999999);
+        $form = ['_csrf' => $csrf, 'type' => 'individual', 'full_name' => 'ลูกค้า เอชทีทีพี', 'phone' => $phone, 'email' => 'x@y.co'];
+        $r = t_http('POST', '/admin/customers', ['form' => $form], $admin);
+        assert_same(302, $r['status']);
+        assert_true(preg_match('#/admin/customers/(\d+)/edit$#', $r['headers']['location'][0], $m) === 1);
+        $cid = (int) $m[1];
+        $created[] = $cid;
+
+        // เบอร์ซ้ำ → กลับฟอร์มพร้อมข้อความ ไม่ 500 ไม่สร้างซ้ำ
+        $dup = t_http('POST', '/admin/customers', ['form' => ['full_name' => 'อีกคน'] + $form], $admin);
+        assert_same(200, $dup['status']);
+        assert_true(strpos($dup['body'], 'เบอร์นี้มีลูกค้าอยู่แล้ว') !== false);
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM customers WHERE phone = :p', ['p' => $phone]));
+        // ช่องผิด → ข้อความที่ช่อง (ค่าแปลกในอาร์เรย์ก็ไม่ 500)
+        $bad = t_http('POST', '/admin/customers', ['form' => ['_csrf' => $csrf, 'full_name' => '', 'phone' => 'abc', 'email' => ['x']]], $admin);
+        assert_same(200, $bad['status']);
+        assert_true(strpos($bad['body'], 'เบอร์โทรไม่ถูกต้อง') !== false);
+
+        // แก้ไข
+        $edit = t_http('GET', "/admin/customers/$cid/edit", [], $admin);
+        assert_same(200, $edit['status']);
+        assert_true(strpos($edit['body'], 'ลูกค้า เอชทีทีพี') !== false && strpos($edit['body'], 'id="docs"') !== false);
+        $upd = t_http('POST', "/admin/customers/$cid", ['form' => ['full_name' => 'ชื่อใหม่'] + $form], $admin);
+        assert_same(302, $upd['status']);
+        assert_same('ชื่อใหม่', Database::value('SELECT full_name FROM customers WHERE id = :i', ['i' => $cid]));
+        assert_same(404, t_http('GET', '/admin/customers/999999/edit', [], $admin)['status']);
+        assert_same(404, t_http('GET', '/admin/customers/abc/edit', [], $admin)['status']);
+
+        // ค้นหา
+        $found = t_http('GET', '/admin/customers?q=' . urlencode($phone), [], $admin);
+        assert_true(strpos($found['body'], 'ชื่อใหม่') !== false);
+
+        // เอกสาร: อัปโหลด รูป + PDF + ไฟล์ปลอม
+        $png = t_cdoc_file('png');
+        $pdf = t_cdoc_file('pdf');
+        $evil = t_cdoc_file('txt');
+        $files = [$png['tmp_name'], $pdf['tmp_name'], $evil['tmp_name']];
+        foreach ([[$png, 'บัตร.png', 'image/png'], [$pdf, 'a.pdf', 'application/pdf'], [$evil, 'evil.png', 'image/png']] as [$f, $n, $mime]) {
+            t_http('POST', "/admin/customers/$cid/documents", ['form' => ['_csrf' => $csrf, 'doc_kind' => 'id_card', 'doc_note' => 'ทดสอบ'], 'files' => ['doc_file' => [$f['tmp_name'], $n, $mime]]], $admin);
+        }
+        $docs = Database::all('SELECT * FROM customer_documents WHERE customer_id = :c ORDER BY id', ['c' => $cid]);
+        assert_same(2, count($docs), 'รูปกับ PDF ผ่าน ไฟล์ปลอมไม่ผ่าน');
+        $created = array_merge($created);
+
+        // เปิดดูเอกสาร: ล็อกอินแล้วได้ชนิดถูกต้อง + header กันเดา/แคช + บันทึกประวัติ ; คนนอกไม่ได้
+        $view = t_http('GET', '/admin/customer-docs/' . $docs[0]['id'], [], $admin);
+        assert_same(200, $view['status']);
+        assert_true(str_contains(implode(',', $view['headers']['content-type'] ?? []), 'image/png'));
+        assert_true(str_contains(implode(',', $view['headers']['x-content-type-options'] ?? []), 'nosniff'));
+        assert_true(str_contains(strtolower(implode(',', $view['headers']['cache-control'] ?? [])), 'no-store'));
+        $pdfView = t_http('GET', '/admin/customer-docs/' . $docs[1]['id'], [], $admin);
+        assert_true(str_contains(implode(',', $pdfView['headers']['content-type'] ?? []), 'application/pdf'));
+        assert_true((int) Database::value("SELECT COUNT(*) FROM activity_logs WHERE action = 'customer_document_viewed'") >= 2, 'บันทึกประวัติการเปิดดู');
+        $anon = [];
+        assert_same(302, t_http('GET', '/admin/customer-docs/' . $docs[0]['id'], [], $anon)['status'], 'ไม่ล็อกอินต้องถูกส่งไปหน้าล็อกอิน');
+        assert_same(404, t_http('GET', '/admin/customer-docs/999999', [], $admin)['status']);
+        assert_same(404, t_http('GET', '/storage/private/' . $docs[0]['file_path'], [], $anon)['status'], 'เปิดไฟล์ตรงไม่ได้');
+
+        // พนักงาน (ไม่ใช่เจ้าของร้าน) ลบเอกสาร/ลูกค้าไม่ได้ แต่แนบ/เปิดดูได้
+        $staff = [];
+        $tok = t_http_csrf('/admin/login', $staff);
+        t_http('POST', '/admin/login', ['form' => ['_csrf' => $tok, 'email' => $staffEmail, 'password' => 'password-1234']], $staff);
+        $stCsrf = t_http_csrf("/admin/customers/$cid/edit", $staff);
+        assert_same(200, t_http('GET', '/admin/customer-docs/' . $docs[0]['id'], [], $staff)['status']);
+        assert_same(403, t_http('POST', '/admin/customer-docs/' . $docs[0]['id'] . '/delete', ['form' => ['_csrf' => $stCsrf]], $staff)['status']);
+        assert_same(403, t_http('POST', "/admin/customers/$cid/delete", ['form' => ['_csrf' => $stCsrf]], $staff)['status']);
+        $edStaff = t_http('GET', "/admin/customers/$cid/edit", [], $staff);
+        assert_true(strpos($edStaff['body'], 'ลบลูกค้า') === false && strpos($edStaff['body'], '/delete') === false, 'พนักงานไม่เห็นปุ่มลบ');
+
+        // เจ้าของร้านลบเอกสาร → ไฟล์หาย ; สร้างการจองจากหน้าลูกค้าเติมข้อมูลให้
+        $rel = $docs[0]['file_path'];
+        t_http('POST', '/admin/customer-docs/' . $docs[0]['id'] . '/delete', ['form' => ['_csrf' => $csrf]], $admin);
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM customer_documents WHERE customer_id = :c', ['c' => $cid]));
+        assert_same(null, \App\Services\CustomerDocService::absPath($rel));
+        $prefill = t_http('GET', "/admin/bookings/create?customer=$cid", [], $admin);
+        assert_true(strpos($prefill['body'], 'value="' . $phone . '"') !== false && strpos($prefill['body'], 'ชื่อใหม่') !== false, 'เติมชื่อ/เบอร์จากลูกค้า');
+
+        // ลบลูกค้า (ไม่มีการจอง) → หายจากรายการ เบอร์ใช้ซ้ำได้
+        t_http('POST', "/admin/customers/$cid/delete", ['form' => ['_csrf' => $csrf]], $admin);
+        assert_true(Database::value('SELECT deleted_at FROM customers WHERE id = :i', ['i' => $cid]) !== null);
+        assert_same(404, t_http('GET', "/admin/customers/$cid/edit", [], $admin)['status']);
+    } finally {
+        foreach (Database::all('SELECT file_path FROM customer_documents WHERE customer_id IN (' . implode(',', array_map('intval', $created ?: [0])) . ')') as $row) {
+            $full = \App\Services\CustomerDocService::absPath($row['file_path']);
+            if ($full) {
+                @unlink($full);
+            }
+        }
+        foreach ($created as $c) {
+            Database::run('DELETE FROM customers WHERE id = :i', ['i' => $c]);
+        }
+        foreach ($files as $f) {
+            @unlink($f);
+        }
+        Database::run('DELETE FROM users WHERE id = :u', ['u' => $staffId]);
+        Database::run("DELETE FROM activity_logs WHERE action LIKE 'customer_%'");
         t_http_flow_cleanup($fx);
     }
 }

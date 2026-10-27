@@ -49,6 +49,7 @@ final class CarImageService
         if ($tmp === '' || !is_file($tmp) || ($viaHttp && !is_uploaded_file($tmp))) {
             throw new UserError('กรุณาแนบไฟล์รูป');
         }
+        clearstatcache(true, $tmp);
         if (filesize($tmp) > self::MAX_BYTES) {
             throw new UserError('ไฟล์ใหญ่เกิน ' . (self::MAX_BYTES / 1024 / 1024) . ' MB');
         }

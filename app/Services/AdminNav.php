@@ -23,6 +23,7 @@ final class AdminNav
             ],
             'ข้อมูลหลัก' => [
                 ['/admin/cars', 'cars', '🚗', 'รถ', 0, false],
+                ['/admin/customers', 'customers', '👤', 'ลูกค้า', 0, false],
             ],
             'เอกสาร' => [
                 ['/admin/documents', 'documents', '📄', 'ใบเสนอราคา/ใบเสร็จ', 0, false],
