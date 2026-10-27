@@ -199,3 +199,19 @@ function money2($amount): string
 {
     return number_format((float) $amount, 2);
 }
+
+/** URL เต็มสำหรับส่งให้คนนอกระบบ (ลิงก์เซ็นสัญญา) — ใช้ config app_url ถ้าตั้งไว้ ไม่งั้นอนุมานจากคำขอ */
+function absolute_url(string $path): string
+{
+    $configured = (string) config('app_url', '');
+    if ($configured !== '') {
+        return $configured . '/' . ltrim($path, '/');
+    }
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (config('trust_proxy') && strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? 'localhost');
+    if (!preg_match('/^[A-Za-z0-9.\-]+(:\d{1,5})?$/', $host)) {
+        $host = 'localhost';
+    }
+    return ($https ? 'https' : 'http') . '://' . $host . url($path);
+}

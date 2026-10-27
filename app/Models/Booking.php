@@ -73,6 +73,29 @@ final class Booking
         return Database::one(self::SELECT_WITH_CAR . ' WHERE b.booking_no = :no', ['no' => $no]);
     }
 
+    /**
+     * รหัสลับของลิงก์เซ็นสัญญา (128 บิต) — สร้างครั้งแรกที่ต้องใช้ แล้วใช้รหัสเดิมตลอด
+     * UPDATE เดียวแบบ COALESCE: เรียกพร้อมกันกี่ครั้งก็ได้รหัสเดียวกัน
+     */
+    public static function signToken(int $bookingId): string
+    {
+        Database::run(
+            'UPDATE bookings SET sign_token = COALESCE(sign_token, :t) WHERE id = :id',
+            ['t' => bin2hex(random_bytes(16)), 'id' => $bookingId]
+        );
+        return (string) Database::value('SELECT sign_token FROM bookings WHERE id = :id', ['id' => $bookingId]);
+    }
+
+    /** หาการจองจากเลขที่จอง + รหัสลิงก์เซ็น — ต้องตรงทั้งคู่ (เทียบแบบ constant-time) */
+    public static function findBySignToken(string $bookingNo, string $token): ?array
+    {
+        if (!preg_match('/^[0-9a-f]{32}$/', $token)) {
+            return null;
+        }
+        $row = self::findByNo($bookingNo);
+        return $row !== null && $row['sign_token'] !== null && hash_equals((string) $row['sign_token'], $token) ? $row : null;
+    }
+
     public static function addons(int $bookingId): array
     {
         return Database::all('SELECT * FROM booking_addons WHERE booking_id = :b ORDER BY id', ['b' => $bookingId]);

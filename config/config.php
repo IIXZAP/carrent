@@ -10,6 +10,8 @@ $config = [
     // เปิดเมื่อเว็บอยู่หลัง proxy/CDN ที่ใส่ X-Forwarded-For ให้ (ไม่งั้นทุกคนจะมี IP เดียวกัน = IP ของ proxy)
     // ห้ามเปิดถ้าเข้าเซิร์ฟเวอร์ตรงๆ — ผู้ใช้จะปลอม IP เพื่อหลบขีดจำกัดได้
     'trust_proxy' => filter_var(getenv('TRUST_PROXY') ?: '0', FILTER_VALIDATE_BOOLEAN),
+    // ที่อยู่เว็บเต็ม (เช่น https://rent.example.com) ใช้สร้างลิงก์ที่ส่งให้ลูกค้า — เว้นว่างจะอนุมานจากคำขอ
+    'app_url'     => rtrim((string) (getenv('APP_URL') ?: ''), '/'),
     'db_timezone' => '+07:00',
     'db' => [
         'host' => getenv('DB_HOST') ?: '127.0.0.1',

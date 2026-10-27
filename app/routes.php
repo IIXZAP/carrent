@@ -5,6 +5,7 @@ use App\Controllers\Admin;
 use App\Controllers\BookingController;
 use App\Controllers\CarController;
 use App\Controllers\HomeController;
+use App\Controllers\SignController;
 use App\Controllers\TrackController;
 
 // หน้าลูกค้า
@@ -21,6 +22,11 @@ $router->get('/track/view', [TrackController::class, 'view']);
 $router->post('/track/slip', [TrackController::class, 'slip']);
 $router->get('/track/slip/{id}', [TrackController::class, 'slipFile']);
 $router->post('/track/leave', [TrackController::class, 'leave']);
+
+// ลูกค้าเซ็นสัญญา/ใบรับคืนผ่านลิงก์ลับ (ไม่ต้องล็อกอิน)
+$router->get('/sign', [SignController::class, 'show']);
+$router->post('/sign', [SignController::class, 'submit']);
+$router->get('/sign/photo/{id}', [SignController::class, 'photo']);
 
 // หลังบ้าน: เข้าสู่ระบบ
 $router->get('/admin/login', [Admin\AuthController::class, 'showLogin']);
@@ -74,3 +80,9 @@ $router->get('/admin/documents/{id}/print', [Admin\DocumentController::class, 'p
 $router->get('/admin/documents/{id}/edit', [Admin\DocumentController::class, 'edit'], ['auth']);
 $router->post('/admin/documents/{id}', [Admin\DocumentController::class, 'update'], ['auth']);
 $router->post('/admin/documents/{id}/status', [Admin\DocumentController::class, 'status'], ['auth']);
+
+// หลังบ้าน: สัญญาและลายเซ็น (ยกเลิกลายเซ็นได้เฉพาะเจ้าของร้าน)
+$router->get('/admin/bookings/{id}/contract', [Admin\ContractController::class, 'show'], ['auth']);
+$router->get('/admin/bookings/{id}/contract/print', [Admin\ContractController::class, 'print'], ['auth']);
+$router->get('/admin/signatures/{id}/image', [Admin\ContractController::class, 'image'], ['auth']);
+$router->post('/admin/signatures/{id}/void', [Admin\ContractController::class, 'void'], ['auth', 'admin']);

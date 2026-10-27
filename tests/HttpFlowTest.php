@@ -219,3 +219,124 @@ function test_http_documents_create_from_booking_print_and_status(): void
         t_http_flow_cleanup($fx);
     }
 }
+
+function test_http_signing_flow_customer_link_to_admin_void(): void
+{
+    $fx = t_http_flow_fixture();
+    $bid = $fx['booking'];
+    $sigFiles = [];
+    try {
+        $admin = [];
+        t_http_login($fx, $admin);
+
+        // หน้าสัญญาหลังบ้านออกลิงก์ให้
+        $page = t_http('GET', "/admin/bookings/$bid/contract", [], $admin);
+        assert_same(200, $page['status']);
+        assert_true(preg_match('#value="(http://[^"]+/sign\?[^"]+)"#', html_entity_decode($page['body']), $m) === 1, 'ต้องมีลิงก์เซ็นให้คัดลอก');
+        $link = html_entity_decode($m[1]);
+        $path = '/sign?' . parse_url($link, PHP_URL_QUERY);
+        parse_str((string) parse_url($link, PHP_URL_QUERY), $q);
+        assert_same(32, strlen($q['t']));
+
+        // ลิงก์ผิด/ไม่มีรหัส = 404 เหมือนกันหมด (ไม่บอกว่าเลขที่จองมีจริงหรือไม่)
+        $customer = [];
+        foreach ([
+            '/sign', '/sign?no=' . $q['no'], '/sign?no=' . $q['no'] . '&t=' . str_repeat('0', 32), '/sign?no=ZZZ&t=' . $q['t'],
+            '/sign?no=' . $q['no'] . '&t=' . $q['t'] . '&k=hack', '/sign?no[]=1&t[]=2',
+        ] as $bad) {
+            assert_same(404, t_http('GET', $bad, [], $customer)['status'], "ต้อง 404: $bad");
+        }
+
+        // ลูกค้าเปิดลิงก์: ส่วนหัวห้ามแคช/ห้ามค้นหา ข้อมูลที่แสดงถูก escape
+        Database::run('UPDATE bookings SET contact_name = :n WHERE id = :id', ['n' => '<img src=x onerror=alert(1)>', 'id' => $bid]);
+        $r = t_http('GET', $path, [], $customer);
+        assert_same(200, $r['status']);
+        assert_true(str_contains(strtolower(implode(',', $r['headers']['cache-control'] ?? [])), 'no-store'), 'ต้องไม่แคชหน้าเซ็น');
+        assert_true(str_contains(implode(',', $r['headers']['x-robots-tag'] ?? []), 'noindex'));
+        assert_true(str_contains(implode(',', $r['headers']['referrer-policy'] ?? []), 'no-referrer'));
+        assert_true(strpos($r['body'], '<img src=x') === false, 'ชื่อที่ผู้ใช้กรอกต้องถูก escape');
+        assert_true(strpos($r['body'], 'ทรัพย์สินที่เช่า') !== false && strpos($r['body'], 'PDPA') !== false);
+        Database::run("UPDATE bookings SET contact_name = 'ลูกค้าเทสต์' WHERE id = :id", ['id' => $bid]);
+        $r = t_http('GET', $path, [], $customer);
+        preg_match('/name="seen" value="([0-9a-f]{64})"/', $r['body'], $sm);
+        $csrf = t_http_csrf($path, $customer);
+        $seen = $sm[1];
+        $png = t_sig_png();
+
+        // POST ที่ไม่มี CSRF ถูกปฏิเสธ
+        $fields = ['no' => $q['no'], 'k' => 'contract', 't' => $q['t'], 'seen' => $seen, 'signature' => $png, 'name' => 'ลูกค้าเทสต์', 'accept_terms' => '1', 'consent' => '1'];
+        assert_same(419, t_http('POST', '/sign', ['form' => $fields], $customer)['status']);
+
+        // ไม่ติ๊กยอมรับ → กลับมาที่ฟอร์มพร้อมข้อความ และไม่มีลายเซ็น
+        $r = t_http('POST', '/sign', ['form' => ['_csrf' => $csrf, 'accept_terms' => ''] + $fields], $customer);
+        assert_same(200, $r['status']);
+        assert_true(strpos($r['body'], 'ติ๊กยืนยัน') !== false);
+        assert_same(0, (int) Database::value('SELECT COUNT(*) FROM signatures WHERE booking_id = :b', ['b' => $bid]));
+
+        // เซ็นจริง
+        $r = t_http('POST', '/sign', ['form' => ['_csrf' => $csrf] + $fields], $customer);
+        assert_same(302, $r['status'], 'เซ็นสำเร็จต้อง redirect (กด refresh แล้วไม่ส่งซ้ำ)');
+        $sig = Database::one('SELECT * FROM signatures WHERE booking_id = :b', ['b' => $bid]);
+        $sigFiles[] = $sig['file_path'];
+        assert_true($sig !== null && $sig['voided_at'] === null);
+        assert_same('127.0.0.1', $sig['ip']);
+        $done = t_http('GET', $path, [], $customer);
+        assert_true(strpos($done['body'], 'ลงนามเรียบร้อยแล้ว') !== false && strpos($done['body'], \App\Services\SignatureService::ref($sig)) !== false);
+        assert_true(strpos($done['body'], 'sign-form') === false, 'เซ็นแล้วต้องไม่มีฟอร์มเซ็นอีก');
+
+        // เซ็นซ้ำไม่ได้
+        $again = t_http('POST', '/sign', ['form' => ['_csrf' => $csrf] + $fields], $customer);
+        assert_same(200, $again['status']);
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM signatures WHERE booking_id = :b', ['b' => $bid]));
+
+        // รูปลายเซ็น: แอดมินดูได้ ลูกค้า/คนนอกดูไม่ได้ และเปิดไฟล์ตรงไม่ได้
+        $img = t_http('GET', '/admin/signatures/' . $sig['id'] . '/image', [], $admin);
+        assert_same(200, $img['status']);
+        assert_true(str_contains(implode(',', $img['headers']['content-type'] ?? []), 'image/png'));
+        assert_same(302, t_http('GET', '/admin/signatures/' . $sig['id'] . '/image', [], $customer)['status']);
+        assert_same(404, t_http('GET', '/storage/private/' . $sig['file_path'], [], $customer)['status']);
+        assert_same(404, t_http('GET', '/sign/photo/1?no=' . $q['no'] . '&t=' . $q['t'], [], $customer)['status'], 'รูปที่ไม่ใช่ของใบนี้ต้องเปิดไม่ได้');
+
+        // พิมพ์สัญญามีลายเซ็นและรหัสอ้างอิง
+        $print = t_http('GET', "/admin/bookings/$bid/contract/print?kind=contract", [], $admin);
+        assert_same(200, $print['status']);
+        assert_true(strpos($print['body'], \App\Services\SignatureService::ref($sig)) !== false && strpos($print['body'], '/admin/signatures/' . $sig['id'] . '/image') !== false);
+
+        // แก้ข้อมูลหลังเซ็น → หน้าหลังบ้านเตือน
+        Database::run('UPDATE bookings SET security_deposit = 7777 WHERE id = :id', ['id' => $bid]);
+        $warn = t_http('GET', "/admin/bookings/$bid/contract", [], $admin);
+        assert_true(strpos($warn['body'], 'ข้อมูลถูกแก้ไขหลังลูกค้าลงนาม') !== false && strpos($warn['body'], '7,777') !== false);
+
+        // ยกเลิกเพื่อเซ็นใหม่ (เหตุผลสั้นไปถูกปฏิเสธ) แล้วลูกค้าเซ็นใหม่ได้
+        $token = t_http_csrf("/admin/bookings/$bid/contract", $admin);
+        t_http('POST', '/admin/signatures/' . $sig['id'] . '/void', ['form' => ['_csrf' => $token, 'reason' => 'x']], $admin);
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM signatures WHERE booking_id = :b AND voided_at IS NULL', ['b' => $bid]));
+        t_http('POST', '/admin/signatures/' . $sig['id'] . '/void', ['form' => ['_csrf' => $token, 'reason' => 'ข้อมูลเปลี่ยน']], $admin);
+        assert_same(0, (int) Database::value('SELECT COUNT(*) FROM signatures WHERE booking_id = :b AND voided_at IS NULL', ['b' => $bid]));
+        $r = t_http('GET', $path, [], $customer);
+        assert_true(strpos($r['body'], 'sign-form') !== false, 'ยกเลิกแล้วลูกค้าเซ็นใหม่ได้');
+        preg_match('/name="seen" value="([0-9a-f]{64})"/', $r['body'], $sm2);
+        assert_true($sm2[1] !== $seen, 'ข้อมูลเปลี่ยน (เงินประกัน) hash ที่ลูกค้าเห็นต้องเปลี่ยนตาม');
+        $csrf2 = t_http_csrf($path, $customer);
+        // ส่งด้วย hash เก่า (ลูกค้าค้างหน้าเดิม) → ถูกปฏิเสธให้ตรวจใหม่
+        $stale = t_http('POST', '/sign', ['form' => ['_csrf' => $csrf2, 'seen' => $seen] + $fields], $customer);
+        assert_same(200, $stale['status']);
+        assert_true(strpos($stale['body'], 'เปลี่ยนแปลง') !== false);
+        $ok = t_http('POST', '/sign', ['form' => ['_csrf' => $csrf2, 'seen' => $sm2[1]] + $fields], $customer);
+        assert_same(302, $ok['status']);
+        foreach (Database::all('SELECT file_path FROM signatures WHERE booking_id = :b', ['b' => $bid]) as $row) {
+            $sigFiles[] = $row['file_path'];
+        }
+        assert_same(2, (int) Database::value('SELECT COUNT(*) FROM signatures WHERE booking_id = :b', ['b' => $bid]));
+    } finally {
+        foreach (Database::all('SELECT file_path FROM signatures WHERE booking_id = :b', ['b' => $bid]) as $row) {
+            $sigFiles[] = $row['file_path'];
+        }
+        foreach (array_unique($sigFiles) as $f) {
+            \App\Services\UploadService::delete($f);
+        }
+        Database::run('DELETE FROM signatures WHERE booking_id = :b', ['b' => $bid]);
+        Database::run("DELETE FROM activity_logs WHERE action IN ('signature_signed', 'signature_voided')");
+        t_http_flow_cleanup($fx);
+    }
+}

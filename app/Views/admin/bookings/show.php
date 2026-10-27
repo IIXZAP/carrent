@@ -48,6 +48,7 @@ $due = (float) $booking['grand_total'] + (float) $booking['extra_charge']; ?>
 <div class="panel mt-6">
   <div class="flex flex-wrap items-center gap-2">
     <h2 class="font-semibold mr-auto">เอกสาร</h2>
+    <a class="btn" href="<?= e(url('/admin/bookings/' . $booking['id'] . '/contract')) ?>">สัญญา / ลายเซ็น</a>
     <?php foreach (['quotation', 'invoice', 'receipt'] as $dt): ?>
       <a class="btn" href="<?= e(url('/admin/documents/create?booking=' . $booking['id'] . '&type=' . $dt)) ?>">+ <?= e($docTypes[$dt]) ?></a>
     <?php endforeach; ?>

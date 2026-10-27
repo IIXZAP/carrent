@@ -12,7 +12,7 @@ final class UploadService
 {
     public const MAX_BYTES = 8 * 1024 * 1024;
     private const MAX_PIXELS_SIDE = 12000;
-    private const SUBDIRS = ['slips', 'inspections'];
+    private const SUBDIRS = ['slips', 'inspections', 'signatures'];
     private const TYPES = [
         IMAGETYPE_JPEG => ['jpg', 'image/jpeg'],
         IMAGETYPE_PNG  => ['png', 'image/png'],
@@ -60,6 +60,27 @@ final class UploadService
             throw new \RuntimeException('บันทึกไฟล์ไม่สำเร็จ');
         }
         chmod($dest, 0640);
+        return $subdir . '/' . $name;
+    }
+
+    /**
+     * เขียนรูป PNG ที่ระบบสร้างเอง (ลายเซ็นที่วาดซ้ำแล้ว) ลงที่เก็บแบบปิด — คืน path แบบ relative
+     * ผู้เรียกต้องส่งเฉพาะข้อมูลที่ตรวจ/สร้างเองแล้ว ไม่ใช่ไฟล์ดิบจากผู้ใช้
+     */
+    public static function savePng(string $bytes, string $subdir): string
+    {
+        if (!in_array($subdir, self::SUBDIRS, true) || getimagesizefromstring($bytes) === false) {
+            throw new \InvalidArgumentException('ข้อมูลรูปหรือโฟลเดอร์ปลายทางไม่ถูกต้อง');
+        }
+        $dir = storage_path($subdir);
+        if (!is_dir($dir) && !mkdir($dir, 0750, true) && !is_dir($dir)) {
+            throw new \RuntimeException('สร้างโฟลเดอร์เก็บไฟล์ไม่ได้: ' . $dir);
+        }
+        $name = bin2hex(random_bytes(16)) . '.png';
+        if (file_put_contents($dir . '/' . $name, $bytes, LOCK_EX) === false) {
+            throw new \RuntimeException('บันทึกไฟล์ไม่สำเร็จ');
+        }
+        chmod($dir . '/' . $name, 0640);
         return $subdir . '/' . $name;
     }
 
