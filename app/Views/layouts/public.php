@@ -77,8 +77,8 @@ $noindex    = !empty($noindex);
 
 <header class="sticky top-0 z-[100] border-b border-line bg-white print:hidden">
   <div class="wrap flex h-[60px] items-center gap-3 lg:h-[72px] lg:gap-2.5">
-    <a class="flex min-h-[44px] min-w-0 flex-1 items-center lg:flex-none" href="<?= url('/') ?>" aria-label="<?= e($site) ?> — หน้าแรก">
-      <?= brand_logo('lockup', 'h-[30px] w-auto max-w-full object-contain lg:h-[34px]') ?>
+    <a class="flex min-h-[44px] min-w-0 flex-1 items-center lg:mr-5 lg:flex-none" href="<?= url('/') ?>" aria-label="<?= e($site) ?> — หน้าแรก">
+      <?= brand_logo('lockup', 'h-[30px] w-auto max-w-full object-contain lg:h-[28px] xl:h-[34px]') ?>
     </a>
 
     <nav id="nav" data-open="false"
@@ -86,7 +86,7 @@ $noindex    = !empty($noindex);
       <?php foreach ($menu as $key => [$path, $label]):
           $on = $active === $key; ?>
         <a href="<?= url($path) ?>"
-           class="relative border-b border-line-2 px-3 py-[13px] text-[0.97rem] font-medium last:border-b-0 hover:bg-brand-50 lg:whitespace-nowrap lg:rounded-lg lg:border-b-0 lg:px-3 lg:py-[9px] lg:text-[0.9rem] <?= $on ? 'rounded-lg bg-brand-50 font-bold text-brand lg:bg-transparent lg:after:absolute lg:after:inset-x-3 lg:after:bottom-0.5 lg:after:h-0.5 lg:after:rounded lg:after:bg-accent' : 'text-ink lg:text-ink-2 lg:hover:text-brand' ?>">
+           class="relative border-b border-line-2 px-3 py-[13px] text-[0.97rem] font-medium last:border-b-0 hover:bg-brand-50 lg:whitespace-nowrap lg:rounded-lg lg:border-b-0 lg:px-2 lg:py-[9px] lg:text-[0.9rem] xl:px-3 <?= $on ? 'rounded-lg bg-brand-50 font-bold text-brand lg:bg-transparent lg:after:absolute lg:after:inset-x-3 lg:after:bottom-0.5 lg:after:h-0.5 lg:after:rounded lg:after:bg-accent' : 'text-ink lg:text-ink-2 lg:hover:text-brand' ?>">
           <?= e($label) ?>
         </a>
       <?php endforeach; ?>
@@ -101,10 +101,9 @@ $noindex    = !empty($noindex);
     <div class="hidden flex-none items-center gap-3 lg:flex">
       <a class="flex items-center gap-[9px] whitespace-nowrap" href="tel:<?= e($phoneRaw) ?>">
         <span class="grid h-9 w-9 place-items-center rounded-full bg-brand-50 text-brand"><?= icon('phone') ?></span>
-        <span><b class="block text-base leading-tight text-dark"><?= e(setting('phone')) ?></b>
+        <span class="hidden xl:block"><b class="block text-base leading-tight text-dark"><?= e(setting('phone')) ?></b>
           <span class="block text-[0.72rem] text-muted">บริการทุกวัน <?= e(setting('open_time')) ?> - <?= e(setting('close_time')) ?> น.</span></span>
       </a>
-      <a class="btn btn-sm" href="<?= url('track') ?>"><?= icon('search') ?> ตรวจสอบการจอง</a>
     </div>
 
     <div class="flex flex-none items-center gap-2 lg:hidden">
