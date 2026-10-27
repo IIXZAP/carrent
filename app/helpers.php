@@ -215,3 +215,27 @@ function absolute_url(string $path): string
     }
     return ($https ? 'https' : 'http') . '://' . $host . url($path);
 }
+
+/**
+ * ไฟล์ที่อัปโหลดในช่อง $key — รองรับทั้งช่องเดี่ยวและ multiple (name="x[]") คืนรายการโครงสร้างแบบ $_FILES ต่อไฟล์
+ * ข้ามช่องที่ไม่ได้เลือกไฟล์ ; โครงสร้างผิดรูป (เช่น files[a][b]) ถือว่าไม่มีไฟล์
+ */
+function uploaded_files(string $key): array
+{
+    $f = $_FILES[$key] ?? null;
+    if (!is_array($f) || !isset($f['error'])) {
+        return [];
+    }
+    if (!is_array($f['error'])) {
+        return (int) $f['error'] === UPLOAD_ERR_NO_FILE ? [] : [$f];
+    }
+    $out = [];
+    foreach ($f['error'] as $i => $err) {
+        if (!is_int($i) || !is_int($err) || $err === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        $out[] = ['name' => (string) ($f['name'][$i] ?? ''), 'type' => (string) ($f['type'][$i] ?? ''), 'tmp_name' => (string) ($f['tmp_name'][$i] ?? ''),
+                  'error' => $err, 'size' => (int) ($f['size'][$i] ?? 0)];
+    }
+    return $out;
+}

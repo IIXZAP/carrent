@@ -27,13 +27,47 @@ $bookUrl = $quote !== null ? url('/booking') . '?' . http_build_query([
   <div class="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.9fr)_minmax(0,1fr)] lg:gap-6">
     <div class="min-w-0">
       <div class="panel">
+        <?php
+        $gallery = [];
+        if (upload_exists($car['cover_image'] ?? null)) {
+            $gallery[] = $car['cover_image'];
+        }
+        foreach ($images as $im) {
+            if (upload_exists($im['path'])) {
+                $gallery[] = $im['path'];
+            }
+        }
+        ?>
         <div class="mb-3.5 overflow-hidden rounded-xl bg-white">
-          <?php if (upload_exists($car['cover_image'] ?? null)): ?>
-            <img class="h-auto w-full object-contain" src="<?= e(upload_url($car['cover_image'])) ?>" alt="<?= e($carName) ?>" width="900" height="640" fetchpriority="high">
+          <?php if ($gallery): ?>
+            <img id="mainPhoto" class="h-auto w-full object-contain" src="<?= e(upload_url($gallery[0])) ?>" alt="<?= e($carName) ?>" width="900" height="640" fetchpriority="high">
           <?php else: ?>
             <div class="grid aspect-[4/3] place-items-center bg-surface text-muted"><?= icon('car', 'h-10 w-10 opacity-50') ?></div>
           <?php endif; ?>
         </div>
+        <?php if (count($gallery) > 1): ?>
+          <div class="scroll-hide mb-3.5 flex gap-2 overflow-x-auto" id="thumbs">
+            <?php foreach ($gallery as $i => $path): ?>
+              <button type="button" data-src="<?= e(upload_url($path)) ?>" aria-label="รูปที่ <?= $i + 1 ?>"
+                      class="h-[58px] w-[78px] flex-none cursor-pointer overflow-hidden rounded-lg border-2 bg-white p-0 <?= $i === 0 ? 'border-accent' : 'border-line' ?>">
+                <img class="h-full w-full object-cover" src="<?= e(upload_url($path)) ?>" alt="" loading="lazy">
+              </button>
+            <?php endforeach; ?>
+          </div>
+          <script>
+          (function () {
+            var main = document.getElementById('mainPhoto'), box = document.getElementById('thumbs');
+            if (!main || !box) return;
+            box.addEventListener('click', function (e) {
+              var b = e.target.closest('button[data-src]');
+              if (!b) return;
+              main.src = b.dataset.src;
+              box.querySelectorAll('button').forEach(function (x) { x.classList.replace('border-accent', 'border-line'); });
+              b.classList.replace('border-line', 'border-accent');
+            });
+          })();
+          </script>
+        <?php endif; ?>
 
         <div class="eyebrow"><?= e($car['type_label']) ?></div>
         <h1 class="mb-[0.2em]"><?= e($carName) ?> <?= e($car['year'] ?: '') ?></h1>

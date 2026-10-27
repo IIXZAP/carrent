@@ -47,6 +47,10 @@ $router->post('/admin/cars', [Admin\CarController::class, 'store'], ['auth']);
 $router->get('/admin/cars/{id}/edit', [Admin\CarController::class, 'edit'], ['auth']);
 $router->post('/admin/cars/{id}', [Admin\CarController::class, 'update'], ['auth']);
 $router->post('/admin/cars/{id}/delete', [Admin\CarController::class, 'destroy'], ['auth', 'admin']);
+$router->post('/admin/cars/{id}/cover', [Admin\CarController::class, 'uploadCover'], ['auth']);
+$router->post('/admin/cars/{id}/cover/delete', [Admin\CarController::class, 'deleteCover'], ['auth']);
+$router->post('/admin/cars/{id}/images', [Admin\CarController::class, 'addImages'], ['auth']);
+$router->post('/admin/car-images/{id}/delete', [Admin\CarController::class, 'deleteImage'], ['auth']);
 
 // หลังบ้าน: การจอง (create ต้องมาก่อน {id} เพราะ Router ใช้เส้นแรกที่ตรง)
 $router->get('/admin/bookings', [Admin\BookingController::class, 'index'], ['auth']);
@@ -92,3 +96,8 @@ $router->get('/admin/bookings/{id}/contract', [Admin\ContractController::class, 
 $router->get('/admin/bookings/{id}/contract/print', [Admin\ContractController::class, 'print'], ['auth']);
 $router->get('/admin/signatures/{id}/image', [Admin\ContractController::class, 'image'], ['auth']);
 $router->post('/admin/signatures/{id}/void', [Admin\ContractController::class, 'void'], ['auth', 'admin']);
+
+// หลังบ้าน: ปฏิทินรถ + ปิดรถชั่วคราว
+$router->get('/admin/calendar', [Admin\CalendarController::class, 'index'], ['auth']);
+$router->post('/admin/calendar/block', [Admin\CalendarController::class, 'block'], ['auth']);
+$router->post('/admin/calendar/unblock', [Admin\CalendarController::class, 'unblock'], ['auth']);

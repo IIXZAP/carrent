@@ -74,10 +74,33 @@
       input.parentNode.insertBefore(hint, input.nextSibling);
     }
 
+    /* เลือกหลายไฟล์ (input multiple): ย่อทุกไฟล์ที่เป็นรูป แล้วแทนที่รายการทั้งชุด — ไม่ทิ้งไฟล์อื่น */
+    function shrinkMany() {
+      var files = [].slice.call(input.files);
+      hint.textContent = 'กำลังเตรียม ' + files.length + ' ไฟล์…';
+      Promise.all(files.map(function (f) {
+        if (!/^image\//.test(f.type)) return Promise.resolve(f);
+        return shrink(f, maxSide, quality).then(function (blob) {
+          return (blob && blob.size < f.size)
+            ? new File([blob], f.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' })
+            : f;
+        });
+      })).then(function (out) {
+        try {
+          var dt = new DataTransfer();
+          out.forEach(function (f) { dt.items.add(f); });
+          busy = true; input.files = dt.files; busy = false;
+        } catch (e) { busy = false; }
+        var total = [].reduce.call(input.files, function (n, f) { return n + f.size; }, 0);
+        hint.textContent = input.files.length + ' ไฟล์พร้อมส่ง (' + sz(total) + ')';
+      });
+    }
+
     input.addEventListener('change', function () {
       if (busy) return;                       // เป็นการสลับไฟล์ที่เราทำเอง
       var f = input.files && input.files[0];
       if (!f) { hint.textContent = ''; return; }
+      if (input.multiple && input.files.length > 1) { shrinkMany(); return; }
 
       if (!/^image\//.test(f.type)) {         // PDF ฯลฯ — ไม่ย่อ แค่เตือนถ้าใหญ่เกิน
         hint.innerHTML = (limit && f.size > limit)

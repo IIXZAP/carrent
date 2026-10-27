@@ -83,6 +83,7 @@ final class CarController
             'catalog'  => $catalog,
             'selected' => QuoteService::cleanAddons($rawAddons, $catalog),
             'km'       => $km,
+            'images'   => Car::images((int) $car['id']),
             'busy'     => Booking::busyRanges((int) $car['id'], date('Y-m-d H:i:s'), date('Y-m-d H:i:s', strtotime('+3 months'))),
         ]);
     }

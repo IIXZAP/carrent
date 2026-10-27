@@ -128,6 +128,18 @@ final class Car
         return Database::all($sql . ' ORDER BY c.sort_order, c.price_day, c.id', $params);
     }
 
+    /** รถที่แสดงในปฏิทิน: ยังไม่ลบ และไม่ปิดใช้งาน */
+    public static function forCalendar(): array
+    {
+        return Database::all("SELECT * FROM cars WHERE deleted_at IS NULL AND status <> 'inactive' ORDER BY sort_order, id");
+    }
+
+    /** รูปแกลเลอรีของรถ เรียงตามลำดับ */
+    public static function images(int $carId): array
+    {
+        return Database::all('SELECT * FROM car_images WHERE car_id = :c ORDER BY sort_order, id', ['c' => $carId]);
+    }
+
     public static function create(array $data): int
     {
         $cols = implode(', ', self::COLUMNS);

@@ -52,13 +52,17 @@ function t_http(string $method, string $path, array $opt = [], array &$cookies =
 {
     $headers = $opt['headers'] ?? [];
     $content = '';
-    if (isset($opt['files'])) {
+    if (isset($opt['files']) || isset($opt['file_list'])) {
         // multipart/form-data: ช่องฟอร์มปกติ + ไฟล์ ['ชื่อช่อง' => [path, ชื่อไฟล์, mime]]
         $boundary = '----carrenttest' . bin2hex(random_bytes(8));
         foreach ($opt['form'] ?? [] as $name => $value) {
             $content .= "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n";
         }
-        foreach ($opt['files'] as $name => [$filePath, $filename, $mime]) {   // ($filePath ไม่ใช่ $path — ห้ามทับ URL ที่จะยิง)
+        // file_list: หลายไฟล์ในช่องเดียว (name="images[]") — [[ชื่อช่อง, path, ชื่อไฟล์, mime], ...]
+        foreach ($opt['file_list'] ?? [] as [$name, $filePath, $filename, $mime]) {
+            $content .= "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"; filename=\"$filename\"\r\nContent-Type: $mime\r\n\r\n" . file_get_contents($filePath) . "\r\n";
+        }
+        foreach ($opt['files'] ?? [] as $name => [$filePath, $filename, $mime]) {   // ($filePath ไม่ใช่ $path — ห้ามทับ URL ที่จะยิง)
             $content .= "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"; filename=\"$filename\"\r\nContent-Type: $mime\r\n\r\n" . file_get_contents($filePath) . "\r\n";
         }
         $content .= "--$boundary--\r\n";

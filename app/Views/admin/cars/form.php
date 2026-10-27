@@ -58,3 +58,55 @@ foreach ($types as $t) {
     <a class="btn btn-ghost" href="<?= e(url('/admin/cars')) ?>">ยกเลิก</a>
   </div>
 </form>
+
+<?php if (!empty($car['id'])): ?>
+<div class="panel mt-6" id="images">
+  <h3>รูปรถ</h3>
+  <p class="text-sm text-muted">รูปปกใช้ในการ์ดรถและหน้าแรก · รูปเพิ่มเติมขึ้นเป็นแกลเลอรีในหน้ารายละเอียดรถ (ไม่เกิน <?= (int) \App\Services\CarImageService::MAX_GALLERY ?> รูป) ·
+    ระบบย่อรูปและหมุนตามกล้องให้อัตโนมัติ (JPG / PNG / WEBP)</p>
+
+  <div class="mt-4 grid gap-4 sm:grid-cols-[220px_1fr]">
+    <div>
+      <div class="grid aspect-[4/3] place-items-center overflow-hidden rounded-xl border border-line bg-white">
+        <?php if (upload_exists($car['cover_image'] ?? null)): ?>
+          <img class="h-full w-full object-contain" src="<?= e(upload_url($car['cover_image'])) ?>" alt="รูปปก">
+        <?php else: ?><span class="text-sm text-muted">ยังไม่มีรูปปก</span><?php endif; ?>
+      </div>
+      <?php if (!empty($car['cover_image'])): ?>
+        <form method="post" action="<?= e(url('/admin/cars/' . $car['id'] . '/cover/delete')) ?>" class="mt-2" onsubmit="return confirm('ลบรูปปก?')">
+          <?= csrf_field() ?><button class="btn btn-ghost btn-sm btn-block text-danger">ลบรูปปก</button>
+        </form>
+      <?php endif; ?>
+    </div>
+    <form method="post" enctype="multipart/form-data" action="<?= e(url('/admin/cars/' . $car['id'] . '/cover')) ?>" class="self-start">
+      <?= csrf_field() ?>
+      <div class="field"><label for="cover"><?= !empty($car['cover_image']) ? 'เปลี่ยนรูปปก' : 'อัปโหลดรูปปก' ?></label>
+        <input type="file" id="cover" name="cover" accept="image/jpeg,image/png,image/webp" data-shrink required>
+        <div class="hint">แนะนำรูปรถทั้งคันพื้นหลังขาว แนวนอน</div></div>
+      <button class="btn btn-sm">อัปโหลดรูปปก</button>
+    </form>
+  </div>
+
+  <h4 class="mt-6">แกลเลอรี (<?= count($images) ?>/<?= (int) \App\Services\CarImageService::MAX_GALLERY ?>)</h4>
+  <?php if ($images): ?>
+    <div class="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <?php foreach ($images as $img): ?>
+        <div class="rounded-xl border border-line bg-white p-2">
+          <img class="aspect-[4/3] w-full rounded-lg object-cover" loading="lazy" src="<?= e(upload_url($img['path'])) ?>" alt="">
+          <form method="post" action="<?= e(url('/admin/car-images/' . $img['id'] . '/delete')) ?>" class="mt-2" onsubmit="return confirm('ลบรูปนี้?')">
+            <?= csrf_field() ?><button class="btn btn-ghost btn-sm btn-block text-danger">ลบ</button>
+          </form>
+        </div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+  <?php if (count($images) < \App\Services\CarImageService::MAX_GALLERY): ?>
+    <form method="post" enctype="multipart/form-data" action="<?= e(url('/admin/cars/' . $car['id'] . '/images')) ?>" class="mt-3">
+      <?= csrf_field() ?>
+      <div class="field"><label for="images-input">เพิ่มรูป (เลือกได้หลายไฟล์)</label>
+        <input type="file" id="images-input" name="images[]" accept="image/jpeg,image/png,image/webp" multiple data-shrink required></div>
+      <button class="btn btn-sm">อัปโหลดรูป</button>
+    </form>
+  <?php endif; ?>
+</div>
+<?php endif; ?>

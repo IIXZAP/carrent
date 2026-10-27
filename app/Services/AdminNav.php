@@ -18,6 +18,7 @@ final class AdminNav
             'งานประจำวัน' => [
                 ['/admin', 'dashboard', '📊', 'ภาพรวม', 0, false],
                 ['/admin/bookings', 'bookings', '📅', 'การจอง', $pending, false],
+                ['/admin/calendar', 'calendar', '🗓️', 'ปฏิทินรถ', 0, false],
                 ['/admin/payments', 'payments', '💰', 'ชำระเงิน', $slips, false],
             ],
             'ข้อมูลหลัก' => [

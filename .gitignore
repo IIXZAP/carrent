@@ -7,6 +7,8 @@ storage/backups/*
 storage/private/*
 !storage/private/.gitkeep
 !storage/private/.htaccess
+uploads/cars/*
+!uploads/cars/.gitkeep
 uploads/slips/*
 uploads/inspections/*
 uploads/docs/*

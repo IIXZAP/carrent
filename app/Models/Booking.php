@@ -341,4 +341,24 @@ final class Booking
             ['c' => $carId, 'f' => $from, 't' => $to, 'c2' => $carId, 'f2' => $from, 't2' => $to]
         );
     }
+
+    /** การจองที่ทับเดือนนี้ (ไม่นับที่ยกเลิก) สำหรับปฏิทิน */
+    public static function forCalendar(string $fromDate, string $toDate): array
+    {
+        return Database::all(
+            "SELECT id, car_id, booking_no, contact_name, pickup_at, return_at, status FROM bookings
+              WHERE status <> 'cancelled' AND pickup_at <= :t AND return_at >= :f ORDER BY pickup_at",
+            ['f' => $fromDate . ' 00:00:00', 't' => $toDate . ' 23:59:59']
+        );
+    }
+
+    /** เลขที่จองที่ยังกินคิวรถและทับช่วงนี้ (ไม่รวมเวลาพักรถ) — ใช้บอกว่าปิดรถไม่ได้เพราะใบไหน */
+    public static function conflictNumbers(int $carId, string $from, string $to): array
+    {
+        return array_column(Database::all(
+            "SELECT booking_no FROM bookings WHERE car_id = :c AND status IN ('pending','confirmed','picked_up')
+                AND pickup_at < :t AND return_at > :f ORDER BY pickup_at",
+            ['c' => $carId, 'f' => $from, 't' => $to]
+        ), 'booking_no');
+    }
 }

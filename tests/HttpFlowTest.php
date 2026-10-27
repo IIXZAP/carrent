@@ -370,7 +370,7 @@ function test_http_every_page_renders_without_php_warnings(): void
         foreach (['/admin', '/admin/bookings', '/admin/bookings?status=pending&q=x', '/admin/bookings/create', "/admin/bookings/$bid", "/admin/bookings/$bid/contract",
                   "/admin/bookings/$bid/inspection/out", "/admin/bookings/$bid/security", '/admin/cars', '/admin/cars/create', "/admin/cars/$car/edit",
                   '/admin/payments', '/admin/documents', '/admin/documents?type=invoice', '/admin/documents/create', "/admin/documents/create?booking=$bid&type=invoice",
-                  '/admin/settings'] as $path) {
+                  '/admin/settings', '/admin/calendar', '/admin/calendar?m=2031-09', '/admin/calendar?m=zzz', '/admin/calendar?m[]=1'] as $path) {
             $r = t_http('GET', $path, [], $admin);
             assert_same(200, $r['status'], "$path ตอบ {$r['status']}");
             assert_true(strpos($r['body'], 'class="flex min-h-screen"') !== false || strpos($r['body'], 'min-h-screen') !== false, "$path ต้องอยู่ในเลย์เอาต์หลังบ้าน");
@@ -378,6 +378,138 @@ function test_http_every_page_renders_without_php_warnings(): void
         $problems = t_http_php_problems();
         assert_same([], $problems, "มี PHP warning/notice ระหว่างเรนเดอร์หน้า:\n" . implode("\n", array_slice($problems, 0, 5)));
     } finally {
+        t_http_flow_cleanup($fx);
+    }
+}
+
+function test_http_calendar_block_and_unblock(): void
+{
+    $fx = t_http_flow_fixture();
+    $car = $fx['car'];
+    try {
+        $admin = [];
+        t_http_login($fx, $admin);
+        $csrf = t_http_csrf('/admin/calendar?m=2031-11', $admin);
+
+        // เดือนที่มีการจองของ fixture (ก.ย. 2031) แสดงเลขที่จอง
+        $page = t_http('GET', '/admin/calendar?m=2031-09', [], $admin);
+        assert_true(strpos($page['body'], 'BK') !== false && strpos($page['body'], 'กันยายน 2574') !== false, 'ปฏิทินแสดงการจองและเดือนพ.ศ.');
+
+        // ปิดรถทับการจอง → ปฏิเสธ
+        t_http('POST', '/admin/calendar/block', ['form' => ['_csrf' => $csrf, 'm' => '2031-09', 'car_id' => (string) $car, 'start_at' => '2031-09-11T00:00', 'end_at' => '2031-09-11T20:00', 'reason' => 'x']], $admin);
+        assert_same(0, (int) Database::value('SELECT COUNT(*) FROM car_blocks WHERE car_id = :c', ['c' => $car]));
+
+        // ช่วงว่าง → ปิดได้
+        $r = t_http('POST', '/admin/calendar/block', ['form' => ['_csrf' => $csrf, 'm' => '2031-11', 'car_id' => (string) $car, 'start_at' => '2031-11-05T08:00', 'end_at' => '2031-11-07T18:00', 'reason' => 'เช็กระยะ']], $admin);
+        assert_same(302, $r['status']);
+        assert_true(str_contains($r['headers']['location'][0], 'm=2031-11'));
+        $block = Database::one('SELECT * FROM car_blocks WHERE car_id = :c', ['c' => $car]);
+        assert_true($block !== null && $block['reason'] === 'เช็กระยะ');
+        $shown = t_http('GET', '/admin/calendar?m=2031-11', [], $admin);
+        assert_true(strpos($shown['body'], 'เช็กระยะ') !== false);
+
+        // ลูกค้าเห็นว่าช่วงนั้นรถไม่ว่าง
+        $anon = [];
+        $car1 = t_http('GET', "/cars/$car?pickup=2031-11-06T10:00&return=2031-11-06T18:00", [], $anon);
+        assert_true(strpos($car1['body'], 'ไม่ว่าง') !== false);
+
+        // ต้องล็อกอิน + ลบ
+        $anonStatus = t_http('POST', '/admin/calendar/unblock', ['form' => ['_csrf' => $csrf, 'block_id' => (string) $block['id']]], $anon)['status'];
+        assert_true(in_array($anonStatus, [302, 419], true), "ตอบ $anonStatus");
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM car_blocks WHERE car_id = :c', ['c' => $car]), 'คนที่ไม่ได้ล็อกอินลบไม่ได้');
+        t_http('POST', '/admin/calendar/unblock', ['form' => ['_csrf' => $csrf, 'block_id' => (string) $block['id'], 'm' => '2031-11']], $admin);
+        assert_same(0, (int) Database::value('SELECT COUNT(*) FROM car_blocks WHERE car_id = :c', ['c' => $car]));
+    } finally {
+        Database::run('DELETE FROM car_blocks WHERE car_id = :c', ['c' => $car]);
+        t_http_flow_cleanup($fx);
+    }
+}
+
+function test_http_car_images_upload_cover_gallery_and_public_page(): void
+{
+    $fx = t_http_flow_fixture();
+    $car = $fx['car'];
+    $files = [];
+    $made = [];
+    try {
+        $admin = [];
+        t_http_login($fx, $admin);
+        $csrf = t_http_csrf("/admin/cars/$car/edit", $admin);
+        foreach (['a', 'b', 'c'] as $n) {
+            $f = t_img_file('jpg', 640, 480);
+            $files[$n] = $f['tmp_name'];
+        }
+        $txt = tempnam(sys_get_temp_dir(), 'car');
+        file_put_contents($txt, '<?php echo "x";');
+
+        // ฟอร์มแสดงแผงรูป
+        $form = t_http('GET', "/admin/cars/$car/edit", [], $admin);
+        assert_true(strpos($form['body'], 'id="images"') !== false && strpos($form['body'], 'name="images[]"') !== false);
+
+        // รูปปก
+        $r = t_http('POST', "/admin/cars/$car/cover", ['form' => ['_csrf' => $csrf], 'files' => ['cover' => [$files['a'], 'รถ.jpg', 'image/jpeg']]], $admin);
+        assert_same(302, $r['status']);
+        $cover = Database::value('SELECT cover_image FROM cars WHERE id = :c', ['c' => $car]);
+        $made[] = $cover;
+        assert_true(is_string($cover) && preg_match('#^cars/[0-9a-f]{32}\.(webp|jpg)$#', $cover) === 1, 'ตั้งปกแล้ว: ' . var_export($cover, true));
+
+        // ไฟล์ที่ไม่ใช่รูปถูกปฏิเสธ (ปกเดิมอยู่)
+        t_http('POST', "/admin/cars/$car/cover", ['form' => ['_csrf' => $csrf], 'files' => ['cover' => [$txt, 'evil.jpg', 'image/jpeg']]], $admin);
+        assert_same($cover, Database::value('SELECT cover_image FROM cars WHERE id = :c', ['c' => $car]));
+
+        // แกลเลอรีหลายไฟล์ในคำขอเดียว: รูปที่ผ่านบันทึก รูปเสียถูกข้ามพร้อมข้อความ
+        t_http('POST', "/admin/cars/$car/images", ['form' => ['_csrf' => $csrf], 'file_list' => [
+            ['images[]', $files['b'], 'b.jpg', 'image/jpeg'], ['images[]', $txt, 'bad.jpg', 'image/jpeg'], ['images[]', $files['c'], 'c.jpg', 'image/jpeg'],
+        ]], $admin);
+        $gallery = Database::all('SELECT * FROM car_images WHERE car_id = :c ORDER BY sort_order', ['c' => $car]);
+        assert_same(2, count($gallery), 'รูปที่ผ่านบันทึก 2 รูป ไฟล์ปลอมถูกข้าม');
+        foreach ($gallery as $g) {
+            $made[] = $g['path'];
+        }
+        $page = t_http('GET', "/admin/cars/$car/edit", [], $admin);
+        assert_true(strpos($page['body'], 'bad.jpg') !== false, 'บอกว่าไฟล์ไหนไม่ผ่าน');
+
+        // หน้าลูกค้าเห็นปก + แกลเลอรี และไฟล์เปิดได้จริงเป็นรูป
+        $anon = [];
+        $pub = t_http('GET', "/cars/$car", [], $anon);
+        assert_true(substr_count($pub['body'], '/uploads/cars/') >= 3, 'ปก + แกลเลอรีในหน้ารถ');
+        assert_true(strpos($pub['body'], 'id="thumbs"') !== false);
+        $img = t_http('GET', '/uploads/' . $cover, [], $anon);
+        assert_same(200, $img['status']);
+        assert_true(str_contains(implode(',', $img['headers']['content-type'] ?? []), 'image/'), 'รูปปกต้องส่งเป็นรูป');
+
+        // ลบ: ต้องล็อกอิน + ลบแล้วไฟล์หาย
+        $anonDel = t_http('POST', '/admin/car-images/' . $gallery[0]['id'] . '/delete', ['form' => ['_csrf' => $csrf]], $anon)['status'];
+        assert_true(in_array($anonDel, [302, 419], true));
+        assert_same(2, (int) Database::value('SELECT COUNT(*) FROM car_images WHERE car_id = :c', ['c' => $car]));
+        t_http('POST', '/admin/car-images/' . $gallery[0]['id'] . '/delete', ['form' => ['_csrf' => $csrf]], $admin);
+        assert_same(1, (int) Database::value('SELECT COUNT(*) FROM car_images WHERE car_id = :c', ['c' => $car]));
+        assert_same(null, \App\Services\CarImageService::absPath($gallery[0]['path']));
+        assert_same(404, t_http('POST', '/admin/car-images/999999/delete', ['form' => ['_csrf' => $csrf]], $admin)['status']);
+        t_http('POST', "/admin/cars/$car/cover/delete", ['form' => ['_csrf' => $csrf]], $admin);
+        assert_same(null, Database::value('SELECT cover_image FROM cars WHERE id = :c', ['c' => $car]));
+
+        // ฟอร์มเพิ่มรถใหม่ → ไปหน้าแก้ไขเพื่อเพิ่มรูปต่อ
+        $new = t_http('POST', '/admin/cars', ['form' => ['_csrf' => $csrf, 'plate' => 'IMG-' . bin2hex(random_bytes(2)), 'brand' => 'T', 'model' => 'M', 'car_type_code' => 'sedan',
+            'seats' => '5', 'gear' => 'auto', 'fuel' => 'petrol', 'status' => 'available', 'price_day' => '1000', 'security_deposit' => '0', 'booking_deposit' => '0']], $admin);
+        assert_same(302, $new['status']);
+        assert_true(preg_match('#/admin/cars/(\d+)/edit$#', $new['headers']['location'][0], $m) === 1);
+        Database::run('DELETE FROM cars WHERE id = :c', ['c' => (int) $m[1]]);
+    } finally {
+        foreach (Database::all('SELECT path FROM car_images WHERE car_id = :c', ['c' => $car]) as $row) {
+            $made[] = $row['path'];
+        }
+        $made[] = Database::value('SELECT cover_image FROM cars WHERE id = :c', ['c' => $car]);
+        foreach (array_filter(array_unique($made)) as $p) {
+            $full = \App\Services\CarImageService::absPath((string) $p);
+            if ($full) {
+                @unlink($full);
+            }
+        }
+        foreach ($files as $f) {
+            @unlink($f);
+        }
+        @unlink($txt ?? '');
         t_http_flow_cleanup($fx);
     }
 }
