@@ -76,7 +76,7 @@ $noindex    = !empty($noindex);
 <?php endif; ?>
 
 <header class="sticky top-0 z-[100] border-b border-line bg-white print:hidden">
-  <div class="wrap flex h-[60px] items-center gap-3 lg:h-[72px] lg:gap-2.5">
+  <div class="flex h-[60px] w-full px-4 sm:px-6 lg:px-8 items-center gap-3 lg:h-[72px] lg:gap-2.5">
     <a class="flex min-h-[44px] min-w-0 flex-1 items-center lg:mr-5 lg:flex-none" href="<?= url('/') ?>" aria-label="<?= e($site) ?> — หน้าแรก">
       <?= brand_logo('lockup', 'h-[30px] w-auto max-w-full object-contain lg:h-[28px] xl:h-[34px]') ?>
     </a>
