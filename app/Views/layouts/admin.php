@@ -24,11 +24,11 @@ $menu   = \App\Services\AdminNav::menu();
 <link rel="icon" type="image/png" sizes="32x32" href="<?= url('assets/img/favicon-32.png') ?>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
 <?= brand_style() ?>
 <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
 </head>
-<body class="hma bg-[#f2f4f8] print:bg-white">
+<body class="bg-[#f2f4f8] print:bg-white">
 <div class="flex min-h-screen">
 
   <aside id="side" class="fixed inset-y-0 left-0 z-40 flex w-[236px] -translate-x-full flex-col overflow-y-auto bg-dark text-white/75 transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 print:hidden [&.open]:translate-x-0">
