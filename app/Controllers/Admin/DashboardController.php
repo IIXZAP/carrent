@@ -11,6 +11,7 @@ final class DashboardController
             'title'  => 'ภาพรวม',
             'counts' => Car::countByStatus(),
             'bookingCounts' => \App\Models\Booking::countByStatus(),
+            'pendingSlips'  => \App\Models\Payment::countByStatus()['pending'],
         ], 'layouts/admin');
     }
 }

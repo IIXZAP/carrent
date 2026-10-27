@@ -12,6 +12,9 @@
     </a>
   <?php endforeach; ?>
 </div>
+<?php if ($pendingSlips > 0): ?>
+  <a href="<?= e(url('/admin/payments')) ?>" class="alert alert-success mt-6 block hover:underline">มีสลิปรอตรวจสอบ <?= e($pendingSlips) ?> รายการ →</a>
+<?php endif; ?>
 <div class="flex gap-3 mt-6">
   <a class="btn btn-primary" href="<?= e(url('/admin/bookings/create')) ?>">+ สร้างการจอง</a>
   <a class="btn" href="<?= e(url('/admin/cars')) ?>">จัดการรถ</a>

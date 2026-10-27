@@ -1,4 +1,4 @@
-<?php $me = \App\Services\Auth::user(); ?>
+<?php $me = \App\Services\Auth::user(); $pendingSlips = \App\Models\Payment::countByStatus()['pending']; ?>
 <!doctype html>
 <html lang="th">
 <head>
@@ -15,7 +15,9 @@
       <nav class="flex gap-4 text-sm text-slate-300">
         <a href="<?= e(url('/admin')) ?>" class="hover:text-white">ภาพรวม</a>
         <a href="<?= e(url('/admin/bookings')) ?>" class="hover:text-white">การจอง</a>
+        <a href="<?= e(url('/admin/payments')) ?>" class="hover:text-white">ชำระเงิน<?php if ($pendingSlips > 0): ?> <span class="ml-1 rounded-full bg-amber-400 px-1.5 text-xs font-semibold text-slate-900"><?= e($pendingSlips) ?></span><?php endif; ?></a>
         <a href="<?= e(url('/admin/cars')) ?>" class="hover:text-white">รถ</a>
+        <?php if (\App\Services\Auth::isAdmin()): ?><a href="<?= e(url('/admin/settings')) ?>" class="hover:text-white">ตั้งค่าร้าน</a><?php endif; ?>
       </nav>
       <div class="ml-auto flex items-center gap-3 text-sm">
         <span class="text-slate-300"><?= e($me['name'] ?? '') ?></span>

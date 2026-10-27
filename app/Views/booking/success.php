@@ -12,5 +12,10 @@
   </table>
 
   <p class="mt-6 text-sm text-slate-600">การจองจะยืนยันเมื่อร้านได้รับมัดจำ กรุณาจดเลขที่จองไว้ใช้ติดต่อร้าน</p>
-  <a class="btn btn-primary mt-4" href="<?= e(url('/')) ?>">กลับหน้าแรก</a>
+  <div class="mt-4 text-left"><?php require __DIR__ . '/../partials/bank_info.php'; ?></div>
+  <div class="mt-4 flex flex-wrap justify-center gap-3">
+    <a class="btn btn-primary" href="<?= e(url('/track/view')) ?>">แจ้งโอนเงิน / ดูสถานะการจอง</a>
+    <a class="btn" href="<?= e(url('/')) ?>">กลับหน้าแรก</a>
+  </div>
+  <p class="mt-3 text-xs text-slate-500">ภายหลังเข้าดูได้ที่หน้า "ตรวจสอบการจอง" ด้วยเลขที่จองและเบอร์โทร</p>
 </div>

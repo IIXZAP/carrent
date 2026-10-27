@@ -35,6 +35,12 @@ function url(string $path = '/'): string
     return base_path() . '/' . ltrim($path, '/');
 }
 
+/** โฟลเดอร์เก็บไฟล์ส่วนตัว (สลิป ฯลฯ) — อยู่นอกการเข้าถึงผ่านเว็บ (storage/.htaccess ปฏิเสธทั้งหมด) */
+function storage_path(string $relative = ''): string
+{
+    return APP_ROOT . '/storage/private' . ($relative === '' ? '' : '/' . ltrim($relative, '/'));
+}
+
 function asset(string $path): string
 {
     return url('assets/' . ltrim($path, '/'));

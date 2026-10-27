@@ -4,6 +4,7 @@ namespace App\Controllers\Admin;
 use App\Models\Addon;
 use App\Models\Booking;
 use App\Models\Car;
+use App\Models\Payment;
 use App\Services\AdminBookingService;
 use App\Services\Auth;
 use App\Services\BookingStatus;
@@ -30,6 +31,9 @@ final class BookingController
             'title'   => 'การจอง ' . $booking['booking_no'],
             'booking' => $booking,
             'addons'  => Booking::addons((int) $booking['id']),
+            'payments'     => Payment::forBooking((int) $booking['id']),
+            'netPaid'      => Payment::netPaid((int) $booking['id']),
+            'securityHeld' => Payment::securityHeld((int) $booking['id']),
         ], 'layouts/admin');
     }
 

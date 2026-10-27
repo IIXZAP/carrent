@@ -2,7 +2,7 @@ module.exports = {
   content: ['./app/Views/**/*.php'],
   safelist: [
     'badge-available', 'badge-maintenance', 'badge-inactive', 'alert-success', 'alert-error',
-    'badge-pending', 'badge-confirmed', 'badge-picked_up', 'badge-returned', 'badge-completed', 'badge-cancelled',
+    'badge-approved', 'badge-rejected', 'badge-pending', 'badge-confirmed', 'badge-picked_up', 'badge-returned', 'badge-completed', 'badge-cancelled',
   ],
   theme: {
     extend: {

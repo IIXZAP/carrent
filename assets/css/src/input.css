@@ -18,6 +18,8 @@
   .badge-maintenance { @apply bg-amber-100 text-amber-800; }
   .badge-inactive { @apply bg-slate-200 text-slate-600; }
   .badge-pending { @apply bg-amber-100 text-amber-800; }
+  .badge-approved { @apply bg-green-100 text-green-800; }
+  .badge-rejected { @apply bg-red-100 text-red-800; }
   .badge-confirmed { @apply bg-blue-100 text-blue-800; }
   .badge-picked_up { @apply bg-indigo-100 text-indigo-800; }
   .badge-returned { @apply bg-teal-100 text-teal-800; }

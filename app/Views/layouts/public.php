@@ -10,7 +10,10 @@
   <header class="bg-white border-b border-slate-200">
     <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
       <a href="<?= e(url('/')) ?>" class="font-semibold text-brand-700"><?= e(config('app_name')) ?></a>
-      <a href="<?= e(url('/admin')) ?>" class="text-sm text-slate-500 hover:text-slate-800">หลังบ้าน</a>
+      <nav class="flex items-center gap-4 text-sm text-slate-500">
+        <a href="<?= e(url('/track')) ?>" class="hover:text-slate-800">ตรวจสอบการจอง</a>
+        <a href="<?= e(url('/admin')) ?>" class="hover:text-slate-800">หลังบ้าน</a>
+      </nav>
     </div>
   </header>
   <main class="max-w-5xl mx-auto px-4 py-8">

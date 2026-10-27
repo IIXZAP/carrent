@@ -104,6 +104,27 @@ final class Booking
     }
 
     /**
+     * ล็อกแถวการจองไว้จนจบ transaction — ใช้ก่อนแก้ยอดชำระ/สถานะ ให้คนที่แตะการจองใบเดียวกันต้องรอคิว
+     * (ต้องเป็นคำสั่งแรกใน transaction ก่อนอ่านอย่างอื่น เหมือน Car::lockForUpdate)
+     */
+    public static function lockForUpdate(int $id): ?array
+    {
+        return Database::one('SELECT * FROM bookings WHERE id = :id FOR UPDATE', ['id' => $id]);
+    }
+
+    public static function setPaymentStatus(int $id, string $status): void
+    {
+        Database::run('UPDATE bookings SET payment_status = :s WHERE id = :id', ['s' => $status, 'id' => $id]);
+    }
+
+    /** ยืนยันการจองที่ยังรอยืนยัน — คืน true เฉพาะที่เปลี่ยนจริง (atomic) */
+    public static function confirmIfPending(int $id): bool
+    {
+        $stmt = Database::run("UPDATE bookings SET status = 'confirmed' WHERE id = :id AND status = 'pending'", ['id' => $id]);
+        return $stmt->rowCount() === 1;
+    }
+
+    /**
      * ยกเลิกการจอง — UPDATE เงื่อนไขเดียว (atomic) คืน false ถ้าสถานะเปลี่ยนไปแล้ว
      * ยกเลิกได้เฉพาะก่อนรับรถ
      */

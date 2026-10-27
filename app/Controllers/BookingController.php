@@ -45,6 +45,7 @@ final class BookingController
 
         // เก็บเลขที่จองไว้ใน session — หน้าสำเร็จเปิดได้เฉพาะเจ้าของการจอง (เลขที่จองเดาได้)
         Session::set('last_booking_no', $result['booking']['booking_no']);
+        Session::set('track_booking_id', (int) $result['booking']['id']);   // เข้าหน้าแจ้งโอนได้ทันที ไม่ต้องกรอกเลขที่จองอีก
         redirect('/booking/success/' . $result['booking']['booking_no']);
     }
 
