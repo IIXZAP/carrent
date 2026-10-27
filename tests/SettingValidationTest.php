@@ -44,7 +44,7 @@ function test_setting_time_money_tiers(): void
 
 function test_setting_every_field_has_a_known_type_and_fits_its_column(): void
 {
-    $known = ['text', 'time', 'int', 'money', 'bool', 'tiers', 'percent', 'hours', 'days', 'km'];
+    $known = ['text', 'textarea', 'time', 'int', 'money', 'bool', 'tiers', 'percent', 'hours', 'days', 'km'];
     foreach (SettingController::FIELDS as $key => [$label, $type]) {
         assert_true(in_array($type, $known, true), "$key มีชนิดที่ไม่รู้จัก: $type");
     }
@@ -58,4 +58,10 @@ function test_setting_vat_rate_of_1000_is_refused(): void
 {
     // บั๊กที่เจอในรีวิว: กรอก 1000 ผ่านฟอร์ม แล้วการจองทุกใบที่คิด VAT บันทึกไม่ได้
     assert_true(SettingController::validate(SettingController::FIELDS['vat_rate'][1], '1000') !== null);
+}
+
+function test_setting_textarea_limit(): void
+{
+    assert_same(null, SettingController::validate('textarea', str_repeat('ก', 4000)));
+    assert_true(SettingController::validate('textarea', str_repeat('ก', 4001)) !== null);
 }
