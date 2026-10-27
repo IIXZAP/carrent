@@ -104,7 +104,7 @@ $noindex    = !empty($noindex);
         <span><b class="block text-base leading-tight text-dark"><?= e(setting('phone')) ?></b>
           <span class="block text-[0.72rem] text-muted">บริการทุกวัน <?= e(setting('open_time')) ?> - <?= e(setting('close_time')) ?> น.</span></span>
       </a>
-      <a class="btn btn-sm" href="<?= url('track') ?>"><?= icon('user') ?> เข้าสู่ระบบ</a>
+      <a class="btn btn-sm" href="<?= url('track') ?>"><?= icon('search') ?> ตรวจสอบการจอง</a>
     </div>
 
     <div class="flex flex-none items-center gap-2 lg:hidden">
