@@ -89,6 +89,18 @@ final class Car
         return Database::one('SELECT * FROM cars WHERE id = :id AND deleted_at IS NULL FOR UPDATE', ['id' => $id]);
     }
 
+    /** ราคาต่อวัน (รวมรถที่ถูกลบแล้ว — การจองเก่ายังต้องคิดค่าปรับจากราคารถคันนี้ได้) */
+    public static function priceDay(int $id): float
+    {
+        return (float) Database::value('SELECT price_day FROM cars WHERE id = :id', ['id' => $id]);
+    }
+
+    /** เลขไมล์ของรถเพิ่มได้อย่างเดียว (ไม่ถอยหลังเมื่อบันทึกเลขต่ำกว่าเดิมผิด) */
+    public static function bumpMileage(int $id, int $km): void
+    {
+        Database::run('UPDATE cars SET mileage = GREATEST(mileage, :km) WHERE id = :id', ['km' => max(0, $km), 'id' => $id]);
+    }
+
     /**
      * รถที่ว่างตลอดช่วง [from, to) (ช่วงที่ส่งมาควรขยายด้วยเวลาพักรถแล้ว)
      * กติกาต้องตรงกับ AvailabilityService::isCarAvailable

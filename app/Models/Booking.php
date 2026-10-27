@@ -193,6 +193,51 @@ final class Booking
     }
 
     /**
+     * เปลี่ยนสถานะ — UPDATE เดียวที่ตรวจสถานะเดิมด้วย คืน true เฉพาะที่เปลี่ยนจริง (กดซ้ำ/เปิดสองแท็บไม่ผ่านสองครั้ง)
+     * $set = คอลัมน์อื่นที่แก้พร้อมกัน (ระบุเฉพาะชื่อที่อนุญาต)
+     */
+    public static function transition(int $id, array $from, string $to, array $set = []): bool
+    {
+        $allowed = ['picked_up_at', 'returned_at', 'extra_charge', 'extra_note', 'extra_breakdown', 'damage_note'];
+        $sets = ['status = :to'];
+        $params = ['to' => $to, 'id' => $id];
+        foreach ($set as $col => $value) {
+            if (!in_array($col, $allowed, true)) {
+                throw new \InvalidArgumentException("คอลัมน์ไม่ได้รับอนุญาต: $col");
+            }
+            $sets[] = "$col = :$col";
+            $params[$col] = $value;
+        }
+        $in = [];
+        foreach (array_values($from) as $i => $status) {
+            $in[] = ":f$i";
+            $params["f$i"] = $status;
+        }
+        $stmt = Database::run('UPDATE bookings SET ' . implode(', ', $sets) . ' WHERE id = :id AND status IN (' . implode(', ', $in) . ')', $params);
+        return $stmt->rowCount() === 1;
+    }
+
+    /** การจองอื่นของรถคันนี้ที่รับรถไปแล้วแต่ยังไม่คืน (รถไม่อยู่ที่ร้าน) — คืนเลขที่จอง หรือ null */
+    public static function otherCheckedOutForCar(int $carId, int $exceptId): ?string
+    {
+        $no = Database::value("SELECT booking_no FROM bookings WHERE car_id = :c AND status = 'picked_up' AND id <> :x LIMIT 1", ['c' => $carId, 'x' => $exceptId]);
+        return $no === null ? null : (string) $no;
+    }
+
+    /** เพิ่มค่าใช้จ่ายหลังรับคืน (บวกเข้ายอดเดิม + ต่อท้ายรายการ) — เรียกใน transaction ที่ล็อกการจองแล้ว */
+    public static function addExtraCharge(int $id, float $amount, array $line): void
+    {
+        $booking = Database::one('SELECT extra_charge, extra_note, extra_breakdown FROM bookings WHERE id = :id', ['id' => $id]);
+        $lines = json_decode((string) ($booking['extra_breakdown'] ?? ''), true) ?: [];
+        $lines[] = $line;
+        $note = trim((string) $booking['extra_note'] . ' · ' . $line['label'] . ' ' . number_format($amount, 0) . ' บ.', ' ·');
+        Database::run(
+            'UPDATE bookings SET extra_charge = :c, extra_breakdown = :b, extra_note = :n WHERE id = :id',
+            ['c' => round((float) $booking['extra_charge'] + $amount, 2), 'b' => json_encode($lines, JSON_UNESCAPED_UNICODE), 'n' => mb_substr($note, 0, 250), 'id' => $id]
+        );
+    }
+
+    /**
      * ล็อกแถวการจองไว้จนจบ transaction — ใช้ก่อนแก้ยอดชำระ/สถานะ ให้คนที่แตะการจองใบเดียวกันต้องรอคิว
      * (ต้องเป็นคำสั่งแรกใน transaction ก่อนอ่านอย่างอื่น เหมือน Car::lockForUpdate)
      */

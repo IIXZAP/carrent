@@ -12,7 +12,7 @@ final class UploadService
 {
     public const MAX_BYTES = 8 * 1024 * 1024;
     private const MAX_PIXELS_SIDE = 12000;
-    private const SUBDIRS = ['slips'];
+    private const SUBDIRS = ['slips', 'inspections'];
     private const TYPES = [
         IMAGETYPE_JPEG => ['jpg', 'image/jpeg'],
         IMAGETYPE_PNG  => ['png', 'image/png'],
@@ -34,7 +34,7 @@ final class UploadService
 
         $tmp = (string) ($file['tmp_name'] ?? '');
         if ($tmp === '' || ($viaHttp && !is_uploaded_file($tmp)) || !is_file($tmp)) {
-            throw new UserError('กรุณาแนบไฟล์สลิป');
+            throw new UserError('กรุณาแนบไฟล์รูป');
         }
         if (filesize($tmp) > self::MAX_BYTES) {
             throw new UserError('ไฟล์ใหญ่เกิน ' . (self::MAX_BYTES / 1024 / 1024) . ' MB');
@@ -69,7 +69,7 @@ final class UploadService
             return;
         }
         if ($code === UPLOAD_ERR_NO_FILE) {
-            throw new UserError('กรุณาแนบไฟล์สลิป');
+            throw new UserError('กรุณาแนบไฟล์รูป');
         }
         if ($code === UPLOAD_ERR_INI_SIZE || $code === UPLOAD_ERR_FORM_SIZE) {
             throw new UserError('ไฟล์ใหญ่เกินที่เซิร์ฟเวอร์รับได้ กรุณาลดขนาดรูปแล้วลองใหม่');

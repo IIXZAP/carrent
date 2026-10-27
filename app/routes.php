@@ -52,3 +52,15 @@ $router->get('/admin/payments/{id}/slip', [Admin\PaymentController::class, 'slip
 $router->post('/admin/bookings/{id}/payments', [Admin\PaymentController::class, 'record'], ['auth']);
 $router->get('/admin/settings', [Admin\SettingController::class, 'index'], ['auth', 'admin']);
 $router->post('/admin/settings', [Admin\SettingController::class, 'save'], ['auth', 'admin']);
+
+// หลังบ้าน: ขั้นตอนส่งมอบ–รับคืน–ปิดเงินประกัน + ตรวจสภาพรถ
+$router->post('/admin/bookings/{id}/confirm', [Admin\FlowController::class, 'confirm'], ['auth']);
+$router->post('/admin/bookings/{id}/pickup', [Admin\FlowController::class, 'pickup'], ['auth']);
+$router->post('/admin/bookings/{id}/complete', [Admin\FlowController::class, 'complete'], ['auth']);
+$router->get('/admin/bookings/{id}/return', [Admin\FlowController::class, 'returnForm'], ['auth']);
+$router->post('/admin/bookings/{id}/return', [Admin\FlowController::class, 'returnStore'], ['auth']);
+$router->get('/admin/bookings/{id}/security', [Admin\FlowController::class, 'securityForm'], ['auth']);
+$router->post('/admin/bookings/{id}/security', [Admin\FlowController::class, 'securityStore'], ['auth']);
+$router->get('/admin/bookings/{id}/inspection/{kind}', [Admin\FlowController::class, 'inspection'], ['auth']);
+$router->post('/admin/bookings/{id}/inspection/{kind}', [Admin\FlowController::class, 'uploadPhoto'], ['auth']);
+$router->get('/admin/inspection-photos/{id}', [Admin\FlowController::class, 'photo'], ['auth']);

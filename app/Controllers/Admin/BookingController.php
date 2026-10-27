@@ -37,6 +37,8 @@ final class BookingController
             'netPaid'      => Payment::netPaid((int) $booking['id']),
             'securityHeld' => Payment::securityHeld((int) $booking['id']),
             'deliveryLines' => Booking::deliveryLines((int) $booking['id']),
+            'outInspection' => \App\Models\Inspection::get((int) $booking['id'], 'out'),
+            'inInspection'  => \App\Models\Inspection::get((int) $booking['id'], 'in'),
         ], 'layouts/admin');
     }
 

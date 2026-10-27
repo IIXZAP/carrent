@@ -25,6 +25,18 @@
   </table>
 </div>
 
+<?php $extraLines = array_filter(json_decode((string) ($booking['extra_breakdown'] ?? ''), true) ?: [], static fn(array $l): bool => empty($l['waived']) && (float) $l['amount'] > 0); ?>
+<?php if ($extraLines): ?>
+  <div class="panel mt-4">
+    <h2 class="font-semibold">ค่าใช้จ่ายเพิ่มตอนรับคืนรถ</h2>
+    <table class="table mt-2">
+      <?php foreach ($extraLines as $l): ?>
+        <tr><td><?= e($l['label']) ?><?php if (!empty($l['detail'])): ?><br><span class="text-xs text-slate-500"><?= e($l['detail']) ?></span><?php endif; ?></td><td class="text-right">฿<?= e(money($l['amount'])) ?></td></tr>
+      <?php endforeach; ?>
+    </table>
+  </div>
+<?php endif; ?>
+
 <?php if ($booking['status'] === 'pending' && $paid + 0.01 < $booking['deposit_amount']): ?>
   <div class="alert alert-success mt-4">การจองจะยืนยันเมื่อร้านได้รับมัดจำ ฿<?= e(money($booking['deposit_amount'])) ?> กรุณาโอนแล้วแนบสลิปด้านล่าง
     <?php if (!empty($deadline)): ?><br><strong>ชำระก่อน <?= e(date('d/m/Y H:i', strtotime($deadline))) ?> น.</strong> มิฉะนั้นการจองจะถูกยกเลิกอัตโนมัติ<?php endif; ?></div>

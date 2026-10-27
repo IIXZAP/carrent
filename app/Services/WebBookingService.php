@@ -52,6 +52,14 @@ final class WebBookingService
         if ($errors === []) {
             $errors = self::checkLimits($phone, $ip);
         }
+        // กดซ้ำพร้อมกัน: ตอนเช็กครั้งแรกใบแรกยังไม่ commit แต่ตอนเช็ก "รถว่างไหม" ใบแรกเสร็จพอดี — ก่อนตอบ error ใดๆ
+        // ต้องเช็กใบเดิมอีกครั้ง (ไม่งั้นผู้ใช้เห็น "รถไม่ว่าง" ที่เป็นผลของใบจองของตัวเอง)
+        if ($errors !== [] && $pickup !== null && $return !== null && $phone !== '' && self::checkContact($in, $phone) === []) {
+            $existing = self::recentDuplicate($car, $phone, trim((string) $in['name']), $pickup, $return);
+            if ($existing !== null) {
+                return ['errors' => [], 'booking' => $existing];
+            }
+        }
         if ($errors !== []) {
             return self::failure($errors);
         }

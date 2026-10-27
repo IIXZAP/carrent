@@ -44,6 +44,72 @@ $due = (float) $booking['grand_total'] + (float) $booking['extra_charge']; ?>
   </div>
 </div>
 
+<?php
+$id = (int) $booking['id'];
+$depositMissing = max(0.0, (float) $booking['deposit_amount'] - $netPaid);
+$securityMissing = max(0.0, (float) $booking['security_deposit'] - $securityHeld);
+$outProgress = \App\Services\InspectionService::progress($outInspection);
+$inProgress = \App\Services\InspectionService::progress($inInspection);
+?>
+<div class="panel mt-6">
+  <h2 class="font-semibold">ขั้นตอนงาน</h2>
+  <p class="text-sm text-slate-500 mt-1">รอยืนยัน → ยืนยัน → ส่งมอบรถ → รับคืนรถ → ปิดงาน (ยกเลิกได้ก่อนส่งมอบ)</p>
+
+  <div class="mt-3 text-sm grid gap-1 sm:grid-cols-2">
+    <p>ตรวจสภาพตอนส่งมอบ: ถ่ายแล้ว <?= e($outProgress['done']) ?>/<?= e($outProgress['required']) ?>
+      <?= $outInspection && $outInspection['locked_at'] ? ' · <span class="text-green-700">ล็อกแล้ว</span>' : '' ?>
+      · <a class="text-brand-700 hover:underline" href="<?= e(url('/admin/bookings/' . $id . '/inspection/out')) ?>">เปิดหน้าถ่ายรูป</a></p>
+    <p>ตรวจสภาพตอนรับคืน: ถ่ายแล้ว <?= e($inProgress['done']) ?>/<?= e($inProgress['required']) ?>
+      <?= $inInspection && $inInspection['locked_at'] ? ' · <span class="text-green-700">ล็อกแล้ว</span>' : '' ?>
+      · <a class="text-brand-700 hover:underline" href="<?= e(url('/admin/bookings/' . $id . '/inspection/in')) ?>">เปิดหน้าถ่ายรูป</a></p>
+    <?php if ($booking['picked_up_at']): ?><p>ส่งมอบ: <?= e(date('d/m/Y H:i', strtotime($booking['picked_up_at']))) ?>
+      <?= $outInspection ? '· ไมล์ ' . ($outInspection['mileage'] !== null ? e(number_format((int) $outInspection['mileage'])) : '-') . ' · น้ำมัน ' . ($outInspection['fuel_level'] !== null ? e($outInspection['fuel_level']) . '/8' : '-') : '' ?></p><?php endif; ?>
+    <?php if ($booking['returned_at']): ?><p>รับคืน: <?= e(date('d/m/Y H:i', strtotime($booking['returned_at']))) ?>
+      <?= $inInspection ? '· ไมล์ ' . ($inInspection['mileage'] !== null ? e(number_format((int) $inInspection['mileage'])) : '-') . ' · น้ำมัน ' . ($inInspection['fuel_level'] !== null ? e($inInspection['fuel_level']) . '/8' : '-') : '' ?></p><?php endif; ?>
+  </div>
+  <?php if ($booking['damage_note']): ?><p class="mt-2 text-sm text-red-700">ความเสียหาย: <?= e($booking['damage_note']) ?></p><?php endif; ?>
+  <?php if ((float) $booking['extra_charge'] > 0): ?>
+    <p class="mt-2 text-sm">ค่าใช้จ่ายเพิ่ม ฿<?= e(money($booking['extra_charge'])) ?> — <span class="text-slate-500"><?= e($booking['extra_note']) ?></span></p>
+  <?php endif; ?>
+
+  <?php if (in_array($booking['status'], ['pending', 'confirmed'], true)): ?>
+    <?php if ($depositMissing > 0.01 || $securityMissing > 0.01): ?>
+      <div class="alert alert-error mt-3 text-sm">
+        <?php if ($depositMissing > 0.01): ?>ยังรับมัดจำไม่ครบ (ขาด ฿<?= e(money($depositMissing)) ?>) <?php endif; ?>
+        <?php if ($securityMissing > 0.01): ?>· ยังไม่ได้รับเงินประกันครบ (ขาด ฿<?= e(money($securityMissing)) ?>) — บันทึกที่ส่วน "การชำระเงิน" ด้านล่าง<?php endif; ?>
+      </div>
+    <?php endif; ?>
+    <div class="mt-4 flex flex-wrap items-end gap-4">
+      <?php if ($booking['status'] === 'pending'): ?>
+        <form method="post" action="<?= e(url('/admin/bookings/' . $id . '/confirm')) ?>"><?= csrf_field() ?><button class="btn">ยืนยันการจอง</button></form>
+      <?php endif; ?>
+      <form method="post" action="<?= e(url('/admin/bookings/' . $id . '/pickup')) ?>" class="flex flex-wrap items-end gap-3"
+            onsubmit="return confirm('ยืนยันส่งมอบรถ? ผลตรวจสภาพรอบส่งมอบจะถูกล็อก แก้ไม่ได้อีก')">
+        <?= csrf_field() ?>
+        <div><label class="label" for="mileage_out">เลขไมล์ตอนส่งมอบ</label><input class="field w-40" id="mileage_out" name="mileage_out" inputmode="numeric"
+             value="<?= $outInspection && $outInspection['mileage'] !== null ? e($outInspection['mileage']) : '' ?>"></div>
+        <div><label class="label" for="fuel_out">น้ำมัน</label>
+          <select class="field w-24" id="fuel_out" name="fuel_out"><?php for ($i = 8; $i >= 0; $i--): ?><option value="<?= $i ?>" <?= ($outInspection['fuel_level'] ?? 8) == $i ? 'selected' : '' ?>><?= $i ?>/8</option><?php endfor; ?></select></div>
+        <button class="btn btn-primary">ส่งมอบรถ</button>
+      </form>
+    </div>
+    <?php if (!$outProgress['complete']): ?><p class="mt-2 text-xs text-amber-700">ยังถ่ายรูปสภาพรถไม่ครบ (<?= e($outProgress['done']) ?>/<?= e($outProgress['required']) ?>) — ควรถ่ายก่อนส่งมอบ เพราะส่งมอบแล้วถ่ายย้อนหลังไม่ได้</p><?php endif; ?>
+  <?php elseif ($booking['status'] === 'picked_up'): ?>
+    <div class="mt-4"><a class="btn btn-primary" href="<?= e(url('/admin/bookings/' . $id . '/return')) ?>">รับคืนรถ</a>
+      <?php if (strtotime($booking['return_at']) < time()): ?><span class="ml-3 text-sm text-red-700">เลยกำหนดคืนแล้ว (<?= e(date('d/m/Y H:i', strtotime($booking['return_at']))) ?>)</span><?php endif; ?></div>
+  <?php elseif ($booking['status'] === 'returned'): ?>
+    <div class="mt-4 flex flex-wrap gap-3">
+      <form method="post" action="<?= e(url('/admin/bookings/' . $id . '/complete')) ?>"><?= csrf_field() ?><button class="btn btn-primary">ปิดงาน</button></form>
+    </div>
+  <?php endif; ?>
+  <?php if (in_array($booking['status'], ['returned', 'completed', 'cancelled'], true) && $securityHeld > 0): ?>
+    <div class="mt-3"><a class="btn" href="<?= e(url('/admin/bookings/' . $id . '/security')) ?>">ปิดเงินประกัน (ถืออยู่ ฿<?= e(money($securityHeld)) ?>)</a></div>
+  <?php endif; ?>
+  <?php if ($booking['status'] === 'completed' && ((float) $booking['grand_total'] + (float) $booking['extra_charge'] - $netPaid) > 0.01): ?>
+    <p class="mt-3 text-sm text-red-700">ปิดงานแล้วแต่ยังค้างชำระ ฿<?= e(money((float) $booking['grand_total'] + (float) $booking['extra_charge'] - $netPaid)) ?></p>
+  <?php endif; ?>
+</div>
+
 <?php if ($deliveryLines && in_array($booking['status'], ['pending', 'confirmed'], true)): ?>
 <form method="post" action="<?= e(url('/admin/bookings/' . $booking['id'] . '/delivery')) ?>" class="panel mt-6 grid gap-3 sm:grid-cols-5 items-end">
   <?= csrf_field() ?>
