@@ -12,6 +12,8 @@ $config = [
     'trust_proxy' => filter_var(getenv('TRUST_PROXY') ?: '0', FILTER_VALIDATE_BOOLEAN),
     // ที่อยู่เว็บเต็ม (เช่น https://rent.example.com) ใช้สร้างลิงก์ที่ส่งให้ลูกค้า — เว้นว่างจะอนุมานจากคำขอ
     'app_url'     => rtrim((string) (getenv('APP_URL') ?: ''), '/'),
+    // ปลายทาง LINE Messaging API — ใช้ค่าจริงเสมอ เปลี่ยนเฉพาะตอนเทสต์ (ไม่มีหน้าตั้งค่าให้แก้ เพื่อกันถูกชี้ไปเซิร์ฟเวอร์อื่น)
+    'line_api_base' => getenv('LINE_API_BASE') ?: 'https://api.line.me',
     'db_timezone' => '+07:00',
     'db' => [
         'host' => getenv('DB_HOST') ?: '127.0.0.1',

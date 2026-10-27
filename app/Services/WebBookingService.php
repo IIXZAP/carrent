@@ -92,6 +92,7 @@ final class WebBookingService
 
         $booking = Booking::find($id);
         ActivityLog::log('booking_created', 'bookings', $id, $booking['booking_no'], null, $ip);
+        NotificationService::newBooking($booking, $car);
         return ['errors' => [], 'booking' => $booking];
     }
 

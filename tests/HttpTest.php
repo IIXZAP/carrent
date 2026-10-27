@@ -18,6 +18,7 @@ function t_http_base(): string
     $port = (int) substr(stream_socket_get_name($probe, false), strrpos(stream_socket_get_name($probe, false), ':') + 1);
     fclose($probe);
 
+    t_fake_line();   // php -S ตัวนี้สืบทอด LINE_API_BASE ไปชี้ LINE ปลอม ไม่มีทางยิง LINE จริงจากเทสต์
     $log = tempnam(sys_get_temp_dir(), 'carrent-http');
     $GLOBALS['t_http_log'] = $log;
     $proc = proc_open([PHP_BINARY, '-S', "127.0.0.1:$port", 'index.php'], [1 => ['file', '/dev/null', 'w'], 2 => ['file', $log, 'w']], $pipes, APP_ROOT);

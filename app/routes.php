@@ -68,6 +68,11 @@ $router->get('/admin/payments/{id}/slip', [Admin\PaymentController::class, 'slip
 $router->post('/admin/bookings/{id}/payments', [Admin\PaymentController::class, 'record'], ['auth']);
 $router->get('/admin/settings', [Admin\SettingController::class, 'index'], ['auth', 'admin']);
 $router->post('/admin/settings', [Admin\SettingController::class, 'save'], ['auth', 'admin']);
+$router->get('/admin/line', [Admin\LineController::class, 'index'], ['auth', 'admin']);
+$router->post('/admin/line', [Admin\LineController::class, 'save'], ['auth', 'admin']);
+$router->post('/admin/line/test', [Admin\LineController::class, 'test'], ['auth', 'admin']);
+$router->post('/admin/line/flush', [Admin\LineController::class, 'flush'], ['auth', 'admin']);
+$router->post('/admin/line/{id}/retry', [Admin\LineController::class, 'retry'], ['auth', 'admin']);
 
 // หลังบ้าน: ขั้นตอนส่งมอบ–รับคืน–ปิดเงินประกัน + ตรวจสภาพรถ
 $router->post('/admin/bookings/{id}/confirm', [Admin\FlowController::class, 'confirm'], ['auth']);

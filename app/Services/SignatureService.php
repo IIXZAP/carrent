@@ -280,7 +280,7 @@ final class SignatureService
 
         $path = UploadService::savePng($png, 'signatures');
         try {
-            return (int) Database::transaction(static function () use ($bookingId, $kind, $name, $seen, $path, $ctx): int {
+            $id = (int) Database::transaction(static function () use ($bookingId, $kind, $name, $seen, $path, $ctx): int {
                 $b = Booking::lockForUpdate($bookingId);
                 if ($b === null) {
                     throw new UserError('ไม่พบการจอง');
@@ -329,6 +329,11 @@ final class SignatureService
             UploadService::delete($path);   // ไฟล์นี้เพิ่งสร้างเองและยังไม่มีแถวอ้างถึง
             throw $e;
         }
+        $booking = Booking::find($bookingId);
+        if ($booking !== null) {
+            NotificationService::signed($booking, $id, $kind, $name);   // ห้ามโยน exception — ลายเซ็นบันทึกสำเร็จแล้ว
+        }
+        return $id;
     }
 
     /**

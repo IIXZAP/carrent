@@ -112,6 +112,7 @@ final class PaymentService
             throw $e;
         }
         ActivityLog::log('slip_uploaded', 'bookings', (int) $booking['id'], (string) $amount);
+        NotificationService::newSlip($booking, $id, $amount);
         return $id;
     }
 

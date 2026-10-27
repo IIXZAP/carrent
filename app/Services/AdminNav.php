@@ -30,6 +30,7 @@ final class AdminNav
             ],
             'ระบบ' => [
                 ['/admin/settings', 'settings', '⚙️', 'ตั้งค่า', 0, true],
+                ['/admin/line', 'line', '💬', 'แจ้งเตือน LINE', 0, true],
             ],
         ];
 
