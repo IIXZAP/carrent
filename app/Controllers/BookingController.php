@@ -14,16 +14,16 @@ final class BookingController
     /** ฟอร์มจอง: รับรถ/วัน/บริการเสริมมาจากหน้ารถ (GET) แล้วคิดราคาใหม่ฝั่งเซิร์ฟเวอร์ทุกครั้ง */
     public function form(): void
     {
-        $car = Car::find((int) ($_GET['car'] ?? 0));
+        $car = Car::find((int) get_str('car'));
         if ($car === null || $car['status'] !== 'available') {
             abort(404);
         }
         $in = [
             'car_id' => $car['id'],
-            'pickup' => (string) ($_GET['pickup'] ?? ''),
-            'return' => (string) ($_GET['return'] ?? ''),
-            'addons' => is_array($_GET['addons'] ?? null) ? $_GET['addons'] : [],
-            'km'     => (string) ($_GET['km'] ?? ''),
+            'pickup' => get_str('pickup'),
+            'return' => get_str('return'),
+            'addons' => get_array('addons'),
+            'km'     => get_str('km'),
             'pick_type' => 'shop', 'ret_type' => 'shop',
         ];
         $this->render($car, $in, []);
@@ -72,8 +72,8 @@ final class BookingController
         foreach (['car_id', 'pickup', 'return', 'km', 'name', 'phone', 'email', 'line', 'pick_type', 'ret_type', 'place_pick', 'place_ret', 'note'] as $key) {
             $in[$key] = post($key);
         }
-        $in['addons'] = is_array($_POST['addons'] ?? null) ? $_POST['addons'] : [];
-        $in['accept'] = ($_POST['accept'] ?? '') === '1';
+        $in['addons'] = post_array('addons');
+        $in['accept'] = post('accept') === '1';
         return $in;
     }
 

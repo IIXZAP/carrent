@@ -7,7 +7,7 @@ use App\Services\DeliveryFeeService;
 /** ตั้งค่าร้าน (เฉพาะเจ้าของร้าน) — แก้ได้เฉพาะ key ที่ระบุไว้ที่นี่ */
 final class SettingController
 {
-    /** key => [ป้าย, ชนิด, กลุ่ม] ชนิด: text | time | int | money | bool | tiers */
+    /** key => [ป้าย, ชนิด, กลุ่ม] ชนิด: text | time | hours | days | km | percent | money | bool | tiers */
     public const FIELDS = [
         'phone'                    => ['เบอร์โทรร้าน', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'bank_name'                => ['ธนาคาร', 'text', 'ติดต่อ / บัญชีรับโอน'],
@@ -16,16 +16,16 @@ final class SettingController
         'promptpay'                => ['พร้อมเพย์ (เบอร์/เลขผู้เสียภาษี)', 'text', 'ติดต่อ / บัญชีรับโอน'],
         'open_time'                => ['ร้านเปิด (HH:MM)', 'time', 'เวลาและกติกาการจอง'],
         'close_time'               => ['ร้านปิด (HH:MM)', 'time', 'เวลาและกติกาการจอง'],
-        'booking_lead_hours'       => ['จองล่วงหน้าอย่างน้อย (ชม.)', 'int', 'เวลาและกติกาการจอง'],
-        'booking_gap_hours'        => ['เวลาพักรถระหว่างงาน (ชม.)', 'int', 'เวลาและกติกาการจอง'],
-        'min_rental_days'          => ['เช่าขั้นต่ำ (วัน)', 'int', 'เวลาและกติกาการจอง'],
-        'late_grace_hours'         => ['ผ่อนผันคืนช้า (ชม.)', 'int', 'เวลาและกติกาการจอง'],
-        'pending_expire_hours'     => ['ยกเลิกอัตโนมัติถ้าไม่จ่ายมัดจำภายใน (ชม., 0 = ปิด — ต้องตั้ง cron ด้วย)', 'int', 'เวลาและกติกาการจอง'],
+        'booking_lead_hours'       => ['จองล่วงหน้าอย่างน้อย (ชม.)', 'hours', 'เวลาและกติกาการจอง'],
+        'booking_gap_hours'        => ['เวลาพักรถระหว่างงาน (ชม.)', 'hours', 'เวลาและกติกาการจอง'],
+        'min_rental_days'          => ['เช่าขั้นต่ำ (วัน)', 'days', 'เวลาและกติกาการจอง'],
+        'late_grace_hours'         => ['ผ่อนผันคืนช้า (ชม.)', 'hours', 'เวลาและกติกาการจอง'],
+        'pending_expire_hours'     => ['ยกเลิกอัตโนมัติถ้าไม่จ่ายมัดจำภายใน (ชม., 0 = ปิด — ต้องตั้ง cron ด้วย)', 'hours', 'เวลาและกติกาการจอง'],
         'booking_deposit'          => ['มัดจำจองเริ่มต้น (บาท)', 'money', 'เงิน'],
         'security_deposit_default' => ['เงินประกันเริ่มต้น (บาท)', 'money', 'เงิน'],
         'vat_enabled'              => ['คิด VAT', 'bool', 'เงิน'],
-        'vat_rate'                 => ['อัตรา VAT (%)', 'money', 'เงิน'],
-        'free_delivery_km'         => ['ส่งรถฟรีในระยะ (กม.)', 'int', 'ค่าส่งรถ'],
+        'vat_rate'                 => ['อัตรา VAT (%)', 'percent', 'เงิน'],
+        'free_delivery_km'         => ['ส่งรถฟรีในระยะ (กม.)', 'km', 'ค่าส่งรถ'],
         'delivery_tiers'           => ['ตารางค่าส่ง "ถึงกม.:ราคา" คั่นด้วย , เช่น 30:0,50:500,80:1000', 'tiers', 'ค่าส่งรถ'],
     ];
 
@@ -59,6 +59,11 @@ final class SettingController
         redirect('/admin/settings');
     }
 
+    private static function intInRange(string $value, int $min, int $max): bool
+    {
+        return ctype_digit($value) && (int) $value >= $min && (int) $value <= $max;
+    }
+
     /** ตรวจค่าตามชนิด — null = ผ่าน */
     public static function validate(string $type, string $value): ?string
     {
@@ -67,11 +72,17 @@ final class SettingController
                 return mb_strlen($value) <= 200 ? null : 'ยาวเกินไป';
             case 'time':
                 return preg_match('/^([01]\d|2[0-3]):[0-5]\d$|^24:00$/', $value) === 1 ? null : 'รูปแบบเวลาต้องเป็น HH:MM (00:00–24:00)';
-            case 'int':
-                return ctype_digit($value) && (int) $value <= 1000 ? null : 'ต้องเป็นจำนวนเต็มไม่ติดลบ';
+            case 'hours':
+                return self::intInRange($value, 0, 720) ? null : 'ต้องเป็นจำนวนเต็ม 0–720 ชั่วโมง';
+            case 'days':
+                return self::intInRange($value, 1, 365) ? null : 'ต้องเป็นจำนวนเต็ม 1–365 วัน';
+            case 'km':
+                return self::intInRange($value, 0, 2000) ? null : 'ต้องเป็นจำนวนเต็ม 0–2,000 กม.';
+            case 'percent':
+                return preg_match('/^\d+(\.\d{1,2})?$/', $value) === 1 && (float) $value <= 100 ? null : 'ต้องเป็นตัวเลข 0–100';
             case 'money':
                 $clean = str_replace(',', '', $value);
-                return preg_match('/^\d+(\.\d{1,2})?$/', $clean) === 1 && (float) $clean <= 99999999 ? null : 'จำนวนเงินไม่ถูกต้อง';
+                return preg_match('/^\d+(\.\d{1,2})?$/', $clean) === 1 && (float) $clean <= 9999999.99 ? null : 'จำนวนเงินไม่ถูกต้อง';
             case 'bool':
                 return null;
             case 'tiers':

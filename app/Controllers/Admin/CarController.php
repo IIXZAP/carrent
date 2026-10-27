@@ -19,9 +19,10 @@ final class CarController
 
     public function store(): void
     {
-        [$data, $errors] = CarService::validate($_POST);
+        $in = request_strings($_POST);
+        [$data, $errors] = CarService::validate($in);
         if ($errors) {
-            $this->form('เพิ่มรถ', $_POST, $errors, '/admin/cars');
+            $this->form('เพิ่มรถ', $in, $errors, '/admin/cars');
             return;
         }
         Car::create($data);
@@ -38,9 +39,10 @@ final class CarController
     public function update(string $id): void
     {
         $car = $this->findOrFail($id);
-        [$data, $errors] = CarService::validate($_POST, (int) $car['id']);
+        $in = request_strings($_POST);
+        [$data, $errors] = CarService::validate($in, (int) $car['id']);
         if ($errors) {
-            $this->form('แก้ไขรถ ' . $car['plate'], $_POST, $errors, '/admin/cars/' . $car['id']);
+            $this->form('แก้ไขรถ ' . $car['plate'], $in, $errors, '/admin/cars/' . $car['id']);
             return;
         }
         Car::update((int) $car['id'], $data);

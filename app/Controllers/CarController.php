@@ -16,11 +16,11 @@ final class CarController
             abort(404);
         }
 
-        $pickup = normalize_datetime($_GET['pickup'] ?? '');
-        $return = normalize_datetime($_GET['return'] ?? '');
-        $asked  = ($_GET['pickup'] ?? '') !== '' || ($_GET['return'] ?? '') !== '';
-        $rawAddons = is_array($_GET['addons'] ?? null) ? $_GET['addons'] : [];
-        $km = max(0.0, (float) ($_GET['km'] ?? 0));
+        $pickup = normalize_datetime(get_str('pickup'));
+        $return = normalize_datetime(get_str('return'));
+        $asked  = isset($_GET['pickup']) || isset($_GET['return']);
+        $rawAddons = get_array('addons');
+        $km = max(0.0, (float) get_str('km', '0'));
 
         $error = null;
         $quote = null;

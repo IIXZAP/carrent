@@ -133,3 +133,70 @@ function test_http_admin_login_still_works_with_correct_password(): void
         Database::run('DELETE FROM users WHERE id = :id', ['id' => $user]);
     }
 }
+
+// ---------- ค่าที่ผู้ใช้ส่งมาเป็นรูปแบบแปลก (อาร์เรย์แทนข้อความ) ต้องไม่ทำให้ระบบ 500 ----------
+
+function test_http_array_valued_parameters_never_cause_a_server_error(): void
+{
+    $car = Database::insert("INSERT INTO cars (plate, brand, model, car_type_code, price_day, status) VALUES (:p, 'T', 'T', 'sedan', 1000, 'available')", ['p' => 'H-' . bin2hex(random_bytes(4))]);
+    $admin = t_http_admin('http-array@test.local');
+    try {
+        $cookies = [];
+        $token = t_http_csrf('/admin/login', $cookies);
+        $login = t_http('POST', '/admin/login', ['form' => ['_csrf' => $token, 'email' => 'http-array@test.local', 'password' => 'password-1234']], $cookies);
+        assert_same(302, $login['status'], 'ล็อกอินเพื่อทดสอบหน้าหลังบ้าน');
+        $adminToken = t_http_csrf('/admin/cars/create', $cookies);
+
+        $get = [
+            '/?pickup[]=1&return[]=2',
+            '/?pickup=2030-01-01T10:00&return[]=2',
+            '/?type[]=x',
+            "/cars/$car?pickup[]=1",
+            "/cars/$car?pickup=2030-01-01T10:00&return=2030-01-02T10:00&km[]=5&addons=x",
+            "/booking?car[]=1",
+            "/booking?car=$car&pickup[]=1&return=x&km[]=1",
+            '/admin/bookings?status[]=x&q[]=y',
+            '/admin/payments?status[]=x',
+        ];
+        foreach ($get as $path) {
+            $status = t_http('GET', $path, [], $cookies)['status'];
+            assert_true($status < 500, "GET $path ได้ $status");
+        }
+
+        $post = [
+            ['/admin/login', ['_csrf' => ['x'], 'email' => 'a']],
+            ['/admin/login', ['_csrf' => $token, 'email' => ['x'], 'password' => ['y']]],
+            ['/track', ['_csrf' => $token, 'booking_no' => ['x'], 'phone' => ['y']]],
+            ['/booking', ['_csrf' => $token, 'car_id' => ['1'], 'name' => ['x'], 'phone' => ['y'], 'pickup' => ['z'], 'accept' => ['1']]],
+            ['/admin/bookings', ['_csrf' => $adminToken, 'car_id' => [$car], 'name' => ['x'], 'phone' => ['y'], 'source' => ['phone'], 'pickup_at' => ['a'], 'return_at' => ['b'], 'addons' => 'x']],
+            ['/admin/cars', ['_csrf' => $adminToken, 'plate' => ['x'], 'brand' => ['y'], 'price_day' => ['1']]],
+        ];
+        foreach ($post as [$path, $form]) {
+            $status = t_http('POST', $path, ['form' => $form], $cookies)['status'];
+            assert_true($status < 500, "POST $path ได้ $status");
+        }
+    } finally {
+        Database::run('DELETE FROM users WHERE id = :id', ['id' => $admin]);
+        Database::run('DELETE FROM activity_logs WHERE action IN (\'login_failed\', \'track_failed\')');
+        Database::run('DELETE FROM cars WHERE id = :id', ['id' => $car]);
+    }
+}
+
+// ---------- วิธีเรียก HTTP ----------
+
+function test_http_head_request_is_served_like_get_without_body(): void
+{
+    $get = t_http('GET', '/');
+    $head = t_http('HEAD', '/');
+    assert_same(200, $get['status']);
+    assert_same(200, $head['status'], 'HEAD / (ตัวเช็กเว็บล่มใช้) ต้องไม่ใช่ 405');
+    assert_same('', $head['body'], 'HEAD ไม่ส่งเนื้อหา');
+}
+
+function test_http_wrong_method_gets_405_with_allow_header(): void
+{
+    $r = t_http('POST', '/track/view', ['form' => []]);
+    assert_same(405, $r['status']);
+    assert_true(isset($r['headers']['allow']) && strpos($r['headers']['allow'][0], 'GET') !== false, 'ต้องบอกวิธีที่รองรับ');
+    assert_same(404, t_http('GET', '/no-such-page')['status']);
+}

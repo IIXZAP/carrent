@@ -19,6 +19,9 @@ final class WebBookingService
     /** จองได้สูงสุดกี่ครั้งต่อชั่วโมงต่อ IP */
     public const MAX_PER_IP_PER_HOUR = 8;
 
+    /** ส่งฟอร์มซ้ำภายในกี่วินาที ถือเป็นการกดซ้ำ/รีเฟรช (ส่งใบเดิมกลับให้ ไม่ใช่ error "รถไม่ว่าง") */
+    public const DUPLICATE_WINDOW_SECONDS = 600;
+
     /**
      * @param array $in car_id pickup return addons(array) km name phone email line
      *                  pick_type ret_type place_pick place_ret note accept
@@ -35,10 +38,17 @@ final class WebBookingService
         $return = normalize_datetime($in['return'] ?? '');
         $phone  = Phone::normalize((string) ($in['phone'] ?? ''));
 
-        $errors = array_merge(
-            self::checkContact($in, $phone),
-            self::checkPeriod($car, $pickup, $return, $in)
-        );
+        $errors = self::checkContact($in, $phone);
+
+        // กดปุ่มซ้ำ/ดับเบิลคลิก/รีเฟรช: ใบแรกสร้างไปแล้ว ใบที่สองต้องได้ใบเดิม ไม่ใช่ข้อความว่ารถไม่ว่าง (ซึ่งเป็นผลของใบแรก)
+        if ($errors === [] && $pickup !== null && $return !== null) {
+            $existing = self::recentDuplicate($car, $phone, trim((string) $in['name']), $pickup, $return);
+            if ($existing !== null) {
+                return ['errors' => [], 'booking' => $existing];
+            }
+        }
+
+        $errors = array_merge($errors, self::checkPeriod($car, $pickup, $return, $in));
         if ($errors === []) {
             $errors = self::checkLimits($phone, $ip);
         }
@@ -64,12 +74,25 @@ final class WebBookingService
         try {
             $id = BookingService::createBooking((int) $car['id'], $pickup, $return, $contact, $opt);
         } catch (\Throwable $e) {
+            // กดซ้ำพร้อมกัน: คำขอที่สองรอคิวล็อกรถจนใบแรกเสร็จ แล้วเห็นว่ารถไม่ว่าง — ถ้าใบนั้นคือใบเดียวกันของเรา ถือว่าสำเร็จ
+            $existing = $e instanceof UserError ? self::recentDuplicate($car, $phone, $contact['name'], $pickup, $return) : null;
+            if ($existing !== null) {
+                return ['errors' => [], 'booking' => $existing];
+            }
             return self::failure([BookingService::publicError($e, 'บันทึกการจองไม่สำเร็จ กรุณาลองใหม่อีกครั้ง หรือติดต่อเจ้าหน้าที่ ' . Setting::get('phone'))]);
         }
 
         $booking = Booking::find($id);
         ActivityLog::log('booking_created', 'bookings', $id, $booking['booking_no'], null, $ip);
         return ['errors' => [], 'booking' => $booking];
+    }
+
+    private static function recentDuplicate(array $car, string $phone, string $name, string $pickup, string $return): ?array
+    {
+        return Booking::findRecentDuplicate(
+            (int) $car['id'], $phone, $name, $pickup, $return,
+            date('Y-m-d H:i:s', time() - self::DUPLICATE_WINDOW_SECONDS)
+        );
     }
 
     private static function checkContact(array $in, string $phone): array

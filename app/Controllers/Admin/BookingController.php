@@ -15,8 +15,8 @@ final class BookingController
 {
     public function index(): void
     {
-        $status = is_string($_GET['status'] ?? null) && array_key_exists($_GET['status'], BookingStatus::STATUS) ? $_GET['status'] : '';
-        $q = is_string($_GET['q'] ?? null) ? trim($_GET['q']) : '';
+        $status = array_key_exists(get_str('status'), BookingStatus::STATUS) ? get_str('status') : '';
+        $q = get_str('q');
         view('admin/bookings/index', [
             'title'    => 'การจอง',
             'bookings' => Booking::search($status, $q),
@@ -67,7 +67,7 @@ final class BookingController
 
     public function store(): void
     {
-        $in = $_POST;
+        $in = request_strings($_POST, ['addons']);
         $result = AdminBookingService::create($in, (int) Auth::user()['id'], client_ip());
         if ($result['errors'] !== []) {
             $this->form($in, $result['errors']);

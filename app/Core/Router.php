@@ -31,6 +31,11 @@ final class Router
 
     public function dispatch(string $method, string $path): void
     {
+        // HEAD = GET แต่ไม่ส่งเนื้อหา (ตัวเช็กเว็บล่ม/CDN ใช้) — ทิ้งผลลัพธ์ที่ controller พิมพ์ออกมา
+        if ($method === 'HEAD') {
+            $method = 'GET';
+            ob_start(static fn(string $buffer): string => '');
+        }
         $pathMatched = false;
         $allowed = [];
         foreach ($this->routes as $route) {
@@ -54,7 +59,7 @@ final class Router
 
     private function run(array $route, array $params): void
     {
-        if ($route['method'] === 'POST' && !Csrf::valid($_POST['_csrf'] ?? null)) {
+        if ($route['method'] === 'POST' && !Csrf::valid($_POST['_csrf'] ?? '')) {
             abort(419, 'หน้าหมดอายุ กรุณากลับไปโหลดหน้าใหม่แล้วลองอีกครั้ง');
         }
         foreach ($route['middleware'] as $name) {

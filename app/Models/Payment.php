@@ -90,6 +90,12 @@ final class Payment
         );
     }
 
+    /** จำนวนสลิปรอตรวจ (ใช้ในเมนูแอดมินทุกหน้า — COUNT เดียวที่ใช้ index ของ status) */
+    public static function pendingCount(): int
+    {
+        return (int) Database::value("SELECT COUNT(*) FROM payments WHERE status = 'pending'");
+    }
+
     public static function countByStatus(): array
     {
         $out = ['pending' => 0, 'approved' => 0, 'rejected' => 0];

@@ -143,7 +143,7 @@ function test_db_booking_numbers_are_sequential_and_unique(): void
         $numbers[] = Booking::find(t_book(t_make_car(), '2030-08-01 10:00:00', '2030-08-02 10:00:00', t_contact('08' . str_repeat((string) $i, 8))))['booking_no'];
     }
     assert_same(4, count(array_unique($numbers)));
-    $last = array_map(static fn(string $n): int => (int) substr($n, -3), $numbers);
+    $last = array_map(static fn(string $n): int => (int) substr(strrchr($n, '-'), 1), $numbers);   // เลขทั้งก้อนหลัง "-" (ข้าม 999 → 1000 ได้)
     assert_same([$last[0], $last[0] + 1, $last[0] + 2, $last[0] + 3], $last, 'เลขต่อเนื่อง');
 }
 

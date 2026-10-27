@@ -1,6 +1,20 @@
-# ทุก URL ที่ไม่ใช่ไฟล์จริง → index.php ; ปิดโฟลเดอร์ภายใน
+# ทุก URL ที่ไม่ใช่ไฟล์จริง → index.php ; ปิดไฟล์/โฟลเดอร์ภายในทั้งหมด
+# (ตรวจด้วย Apache จริง: bash tests/apache/check.sh — เพิ่มกฎใหม่แล้วรันซ้ำ)
 RewriteEngine On
-RewriteRule ^(app|config|database|bin|storage|tests|docs|node_modules)(/|$) - [F,L]
+
+# โฟลเดอร์ภายในของแอป (ไม่ใช่ของเว็บ) — [NC] ไม่สนตัวพิมพ์ เผื่อโฮสต์/เครื่องที่ระบบไฟล์ไม่แยกตัวพิมพ์เล็กใหญ่
+RewriteRule ^(app|bin|config|database|docs|node_modules|storage|tests|vendor)(/|$) - [F,L,NC]
+
+# ไฟล์/โฟลเดอร์ที่ขึ้นต้นด้วยจุด (.git .env .htaccess .gitignore ...) — ยกเว้น .well-known (ขอใบรับรอง SSL)
+RewriteRule (^|/)\.(?!well-known(/|$)) - [F,L]
+
+# ไฟล์ตั้งค่า/เอกสาร/ข้อมูลสำรองที่หลุดมากับโค้ด
+RewriteRule ^(package(-lock)?\.json|composer\.(json|lock)|tailwind\.config\.js|(readme|changelog|license)(\..*)?)$ - [F,L,NC]
+RewriteRule \.(md|sql|log|bak|dist|sample|swp|orig|old)$ - [F,L,NC]
+
+# โฟลเดอร์อัปโหลดแบบเก่า (สลิป/เอกสารลูกค้า/รูปตรวจสภาพรถ) ไม่เปิดตรงๆ — เหลือเปิดเฉพาะ uploads/cars (รูปรถ)
+RewriteRule ^uploads/(slips|docs|inspections)(/|$) - [F,L,NC]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L]

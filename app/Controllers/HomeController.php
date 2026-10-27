@@ -10,10 +10,10 @@ final class HomeController
     /** หน้าแรก: รถทั้งหมด หรือ (ถ้าเลือกวันรับ–คืน) เฉพาะรถที่ว่างพร้อมราคา */
     public function index(): void
     {
-        $pickup = normalize_datetime($_GET['pickup'] ?? '');
-        $return = normalize_datetime($_GET['return'] ?? '');
-        $type   = is_string($_GET['type'] ?? null) ? $_GET['type'] : '';
-        $searching = ($_GET['pickup'] ?? '') !== '' || ($_GET['return'] ?? '') !== '';
+        $pickup = normalize_datetime(get_str('pickup'));
+        $return = normalize_datetime(get_str('return'));
+        $type   = get_str('type');
+        $searching = get_str('pickup') !== '' || get_str('return') !== '' || isset($_GET['pickup']) || isset($_GET['return']);
 
         $error = null;
         $cars  = [];

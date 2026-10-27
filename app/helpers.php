@@ -17,10 +17,10 @@ function config(string $key, $default = null)
     return $value;
 }
 
-/** กัน XSS — ครอบข้อมูลจากผู้ใช้ทุกครั้งที่แสดงใน View */
+/** กัน XSS — ครอบข้อมูลจากผู้ใช้ทุกครั้งที่แสดงใน View (ค่าที่เป็นอาร์เรย์ = ว่าง ไม่ใช่คำว่า "Array") */
 function e($value): string
 {
-    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+    return is_array($value) ? '' : htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 }
 
 /** โฟลเดอร์ที่แอปอยู่ (รองรับติดตั้งในโฟลเดอร์ย่อย) เช่น "" หรือ "/v3" */
@@ -122,9 +122,12 @@ function money($amount): string
 }
 
 /** รับค่าจาก <input type="datetime-local"> หรือ "Y-m-d H:i[:s]" → "Y-m-d H:i:s" (null = รูปแบบไม่ถูกต้อง) */
-function normalize_datetime(?string $value): ?string
+function normalize_datetime($value): ?string
 {
-    $value = trim((string) $value);
+    if (!is_string($value)) {
+        return null;
+    }
+    $value = trim($value);
     foreach (['Y-m-d\TH:i', 'Y-m-d H:i', 'Y-m-d\TH:i:s', 'Y-m-d H:i:s'] as $format) {
         $dt = DateTime::createFromFormat($format, $value);
         $errors = DateTime::getLastErrors();
@@ -139,6 +142,38 @@ function normalize_datetime(?string $value): ?string
 function input_datetime(?string $value): string
 {
     return $value === null || $value === '' ? '' : date('Y-m-d\TH:i', strtotime($value));
+}
+
+/** ค่าจาก query string — ไม่ใช่ข้อความ (เช่น ?x[]=1) ให้ถือเป็นค่าว่าง ไม่ใช่ error */
+function get_str(string $key, string $default = ''): string
+{
+    $value = $_GET[$key] ?? $default;
+    return is_string($value) ? trim($value) : $default;
+}
+
+/** ช่องที่ควรเป็นอาร์เรย์ เช่น addons[code]=1 — ไม่ใช่อาร์เรย์ = อาร์เรย์ว่าง */
+function get_array(string $key): array
+{
+    return is_array($_GET[$key] ?? null) ? $_GET[$key] : [];
+}
+
+function post_array(string $key): array
+{
+    return is_array($_POST[$key] ?? null) ? $_POST[$key] : [];
+}
+
+/** เก็บเฉพาะค่าที่เป็นข้อความจากฟอร์ม (ช่องที่ระบุใน $arrayKeys อนุญาตให้เป็นอาร์เรย์ได้) — กัน service ได้ค่าชนิดที่ไม่คาดคิด */
+function request_strings(array $source, array $arrayKeys = []): array
+{
+    $out = [];
+    foreach ($source as $key => $value) {
+        if (is_string($value)) {
+            $out[$key] = $value;
+        } elseif (is_array($value) && in_array($key, $arrayKeys, true)) {
+            $out[$key] = $value;
+        }
+    }
+    return $out;
 }
 
 function post(string $key, string $default = ''): string

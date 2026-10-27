@@ -12,7 +12,7 @@ final class PaymentController
 {
     public function index(): void
     {
-        $status = is_string($_GET['status'] ?? null) && in_array($_GET['status'], ['pending', 'approved', 'rejected', 'all'], true) ? $_GET['status'] : 'pending';
+        $status = in_array(get_str('status'), ['pending', 'approved', 'rejected', 'all'], true) ? get_str('status') : 'pending';
         view('admin/payments/index', [
             'title'    => 'ชำระเงิน',
             'payments' => Payment::listByStatus($status),

@@ -36,6 +36,20 @@ final class Booking
         );
     }
 
+    /**
+     * ใบจองที่เพิ่งสร้างโดยคนเดิม (เบอร์+ชื่อ) รถเดิม ช่วงเวลาเดิม — ใช้แยก "กดซ้ำ/รีเฟรช" ออกจากการจองซ้อนจริง
+     * นับเฉพาะใบที่ยังใช้งาน (ใบที่ยกเลิกแล้วไม่ใช่ใบเดิมที่ควรส่งกลับให้)
+     */
+    public static function findRecentDuplicate(int $carId, string $phone, string $name, string $pickup, string $return, string $since): ?array
+    {
+        return Database::one(
+            self::SELECT_WITH_CAR . " WHERE b.car_id = :car AND b.contact_phone = :phone AND b.contact_name = :name
+                AND b.pickup_at = :p AND b.return_at = :r AND b.status IN ('pending','confirmed') AND b.created_at >= :since
+              ORDER BY b.id DESC LIMIT 1",
+            ['car' => $carId, 'phone' => $phone, 'name' => $name, 'p' => $pickup, 'r' => $return, 'since' => $since]
+        );
+    }
+
     /** บริการเสริมของการจอง (snapshot ชื่อ/ราคา ณ วันจอง) */
     public static function insertAddon(int $bookingId, ?int $addonId, string $name, float $qty, float $unitPrice, float $amount): void
     {

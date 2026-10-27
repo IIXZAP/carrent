@@ -386,3 +386,13 @@ function test_db_only_rental_money_confirms_a_pending_booking(): void
     PaymentService::record($bid, $user, 'balance', 'cash', 100.0, null);
     assert_same('confirmed', t_fresh($b)['status'], 'ค่าเช่าเข้ามาอีก (ยอดสุทธิยังถึงมัดจำ) ยืนยันได้');
 }
+
+function test_db_pending_count_matches_status_breakdown(): void
+{
+    $b = t_pay_booking();
+    Payment::insert(['booking_id' => (int) $b['id'], 'kind' => 'deposit', 'amount' => 100, 'status' => 'pending']);
+    Payment::insert(['booking_id' => (int) $b['id'], 'kind' => 'deposit', 'amount' => 100, 'status' => 'pending']);
+    Payment::insert(['booking_id' => (int) $b['id'], 'kind' => 'deposit', 'amount' => 100, 'status' => 'rejected']);
+    assert_same(Payment::countByStatus()['pending'], Payment::pendingCount());
+    assert_true(Payment::pendingCount() >= 2);
+}

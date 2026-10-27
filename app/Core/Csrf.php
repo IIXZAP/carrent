@@ -13,9 +13,9 @@ final class Csrf
         return $token;
     }
 
-    public static function valid(?string $given): bool
+    public static function valid($given): bool
     {
-        if ($given === null || $given === '') {
+        if (!is_string($given) || $given === '') {
             return false;
         }
         return hash_equals(self::token(), $given);
